@@ -24,17 +24,19 @@ class GenerateCallback(Callback):
 
     def on_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
-            x0 = torch.randn(self.num_samples, *self.img_shape, device=pl_module.device)
-            xT = self.solver.solve(pl_module, x0)
-            images = [
-                xT[i, ...].permute(1, 2, 0) / 2 + 0.5 for i in range(self.num_samples)
-            ]
+            pl_module.eval()
+            with torch.no_grad():
+                x0 = torch.randn(self.num_samples, *self.img_shape, device=pl_module.device)
+                xT = self.solver.solve(pl_module, x0)
+                images = [
+                    (xT[i, ...].permute(1, 2, 0) / 2 + 0.5).cpu().numpy() for i in range(self.num_samples)
+                ]
 
-            # add to wandblogger
-            trainer.logger.experiment.log_image(
-                "generated", images, trainer.global_step
-            )
-
+                # add to wandblogger
+                trainer.logger.log_image(
+                    "generated", images, trainer.global_step
+                )
+            pl_module.train()
 
 def get_default_callbacks() -> list[Callback]:
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
