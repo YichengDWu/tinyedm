@@ -37,5 +37,6 @@ class EDM(L.LightningModule):
         denoised_img = self.denoiser(noisy_img, sigma)
         weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
         
-        self.mse(weight, denoised_img, clean_img)
+        loss = self.mse(weight, denoised_img, clean_img)
         self.log("train_loss", self.mse, prog_bar=True, on_epoch=True)
+        return loss
