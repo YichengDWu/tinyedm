@@ -45,7 +45,7 @@ class UploadCheckpointCallback(Callback):
         best_model_path = trainer.checkpoint_callback.best_model_path
         artifact = wandb.Artifact('checkpoints', type='model')
         artifact.add_file(best_model_path)
-        self.wandb_logger.experiment.log_artifact(artifact)
+        trainer.logger.experiment.log_artifact(artifact)
 
 def get_default_callbacks(solver_dtype) -> list[Callback]:
     lr_monitor = LearningRateMonitor(logging_interval="epoch")
