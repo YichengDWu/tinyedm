@@ -1,12 +1,6 @@
 import torch
 from tinyedm.datamodule import CIFAR10DataModule
-from tinyedm import (
-    Diffuser,
-    Denoiser,
-    EDM,
-    GenerateCallback,
-    UploadCheckpointCallback
-)
+from tinyedm import Diffuser, Denoiser, EDM, GenerateCallback, UploadCheckpointCallback
 
 from omegaconf import OmegaConf
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -28,12 +22,12 @@ class UNetWrapper(nn.Module):
         outputs = self.model(*args, **kwargs)
         return outputs.sample
 
+
 @hydra.main(version_base=None, config_path="conf", config_name="CIFAR10")
 def main(cfg) -> None:
-    
     # Setting the seed
     L.seed_everything(cfg.seed)
-    
+
     cifar10 = CIFAR10DataModule(**cfg.model.train_ds)
     cifar10.prepare_data()
     cifar10.setup("fit")
@@ -75,9 +69,9 @@ def main(cfg) -> None:
 
     model = EDM(denoiser=denoiser, diffuser=diffuser)
 
-    solver_dtype = torch.float64 if cfg.solver.dtype == "float64" else torch.float32 
+    solver_dtype = torch.float64 if cfg.solver.dtype == "float64" else torch.float32
     solver = hydra.utils.instantiate(cfg.solver, dtype=solver_dtype)
-    
+
     checkpoint_callback = ModelCheckpoint(dirpath=".", **cfg.checkpoint_callback)
     generate_callback = GenerateCallback(solver=solver, **cfg.generate_callback)
     upload_callback = UploadCheckpointCallback()
@@ -88,7 +82,7 @@ def main(cfg) -> None:
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
 
     logger.watch(model, log_freq=500)
-    
+
     if wandb.run.resumed:
         trainer.fit(model, datamodule=cifar10, ckpt_path="best")
     else:
