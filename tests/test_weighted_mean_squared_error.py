@@ -1,6 +1,6 @@
 import pytest
 import torch
-from diffusion.metric import WeightedMeanSquaredError, _weighted_sum_squared_error_update
+from tinyedm.metric import WeightedMeanSquaredError, _weighted_sum_squared_error_update
 
 def test_weighted_mean_squared_error_metric():
     metric = WeightedMeanSquaredError()

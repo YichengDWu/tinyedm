@@ -1,6 +1,6 @@
 import torch
-from diffusion.datamodule import CIFAR10DataModule
-from diffusion import (
+from tinyedm.datamodule import CIFAR10DataModule
+from tinyedm import (
     Diffuser,
     Denoiser,
     EDM,
