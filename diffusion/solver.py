@@ -35,13 +35,13 @@ class DeterministicSolver:
         x1 = x0.to(self.dtype) * self.t_steps[0]
         for i, (t0, t1) in enumerate(zip(self.t_steps[:-1], self.t_steps[1:])):
             x0 = x1
-            denoised = model(x0, t0).to(self.dtype)
+            denoised = model(x0.to(model.dtype), t0.to(model.dtype)).to(self.dtype)    # mixed precision
             dx = (x0 - denoised) / t0
             x1 = x0 + (t1 - t0) * dx
 
             if i < self.num_steps - 1:
-                denoised = model(x1, t1).to(self.dtype)
+                denoised = model(x0.to(model.dtype), t0.to(model.dtype)).to(self.dtype)
                 dx_prime = (x1 - denoised) / t1
                 x1 = x0 + (t1 - t0) * (0.5 * dx + 0.5 * dx_prime)
 
-        return x1
+        return x1.to(x0.dtype) 
