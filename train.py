@@ -140,7 +140,7 @@ if __name__ == "__main__":
         "--project", type=str, default="MNIST", help="Name of the project"
     )
     parser.add_argument(
-        "resume_from", type=str, default=None, help="Path to checkpoint to resume from"
+        "--resume_from", type=str, default=None, help="Path to checkpoint to resume from"
     )
 
     parser.add_argument(
