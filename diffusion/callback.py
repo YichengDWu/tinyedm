@@ -24,7 +24,7 @@ class GenerateCallback(Callback):
         self.img_shape = img_shape
         self.every_n_epochs = every_n_epochs
 
-    def on_epoch_end(self, trainer, pl_module):
+    def on_train_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
             pl_module.eval()
             with torch.no_grad():
@@ -34,10 +34,8 @@ class GenerateCallback(Callback):
                 xT = self.solver.solve(pl_module, x0)
                 # add to wandblogger
                 grid = make_grid(xT, nrow=4, normalize=True, value_range=(-1, 1))
-                images = Image(grid)
-                trainer.logger.experiment.log(
-                    {"generated", images}, step=trainer.current_epoch
-                )
+                trainer.logger.log_image(key="generated", images=[grid], step=trainer.current_epoch)
+
             pl_module.train()
 
 
