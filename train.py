@@ -7,10 +7,10 @@ from diffusion import (
     get_default_callbacks,
 )
 import lightning as L
-import matplotlib.pyplot as plt
 from lightning.pytorch.loggers import WandbLogger
 from diffusers import UNet2DModel
 import torch.nn as nn
+import argparse
 
 # Setting the seed
 L.seed_everything(42)
@@ -26,8 +26,8 @@ class UNetWrapper(nn.Module):
         return outputs.sample
 
 
-def main():
-    cifar10 = CIFAR10DataModule(batch_size=128, num_workers=16)
+def main(args):
+    cifar10 = CIFAR10DataModule(batch_size=args.batch_size, num_workers=16)
     cifar10.prepare_data()
     cifar10.setup("fit")
     diffuser = Diffuser()
@@ -66,24 +66,103 @@ def main():
     net = UNetWrapper(net)
     denoiser = Denoiser(net)
 
-    wandb_logger = WandbLogger(project="MNIST", name="bigrun", log_model=True)
+    callbacks = get_default_callbacks(solver_dtype=args.solver_dtype)
 
-    model = EDM(denoiser=denoiser, diffuser=diffuser)
+    ckpt_path = args.resume_from
+    project = args.project
+    name = args.name
+    max_epochs = args.max_epochs
+
+    if ckpt_path is not None:
+        import wandb
+
+        wandb.init(id=args.id, resume="must")
+        model = EDM.load_from_checkpoint(ckpt_path, denoiser=denoiser)
+        wandb_logger = WandbLogger(project=project, name=name, resume="must")
+        trainer = L.Trainer(
+            accelerator="gpu",
+            devices=-1,
+            max_epochs=max_epochs,
+            logger=wandb_logger,
+            callbacks=callbacks,
+            accumulate_grad_batches=16,
+            strategy="ddp",
+            ckpt_path=ckpt_path,
+        )
+    else:
+        model = EDM(denoiser=denoiser, diffuser=diffuser)
+        wandb_logger = WandbLogger(project="MNIST", name="bigrun")
+        trainer = L.Trainer(
+            accelerator="gpu",
+            devices=-1,
+            max_epochs=max_epochs,
+            logger=wandb_logger,
+            callbacks=callbacks,
+            accumulate_grad_batches=16,
+            strategy="ddp",
+        )
+
     wandb_logger.watch(model, log_freq=500)
-    callbacks = get_default_callbacks()
-
-    trainer = L.Trainer(
-        accelerator="gpu",
-        devices=-1,
-        max_epochs=1000,
-        logger=wandb_logger,
-        callbacks=callbacks,
-        accumulate_grad_batches=16,
-        strategy="ddp",
-    )
 
     trainer.fit(model, cifar10)
-    
-    
+
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Run diffusion model training with configurable parameters."
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=128, help="Batch size for training"
+    )
+    parser.add_argument(
+        "--solver_dtype",
+        type=str,
+        default="float32",
+        help="Data type for solver (float32, float64)",
+    )
+    parser.add_argument(
+        "--num_workers", type=int, default=16, help="Number of workers for data loading"
+    )
+    parser.add_argument(
+        "--max_epochs",
+        type=int,
+        default=1000,
+        help="Maximum number of epochs to train for",
+    )
+    parser.add_argument(
+        "--accumulate_grad_batches",
+        type=int,
+        default=16,
+        help="Number of gradient accumulation steps",
+    )
+    parser.add_argument("--name", type=str, default="bigrun", help="Name of the run")
+    parser.add_argument(
+        "--project", type=str, default="MNIST", help="Name of the project"
+    )
+    parser.add_argument(
+        "resume_from", type=str, default=None, help="Path to checkpoint to resume from"
+    )
+
+    parser.add_argument(
+        "--id",
+        type=str,
+        default=None,
+        help="ID of the training run, required if resuming",
+    )
+
+    args = parser.parse_args()
+
+    if args.resume_from is not None and args.id is None:
+        raise ValueError(
+            "When resuming training, 'id' parameter must also be specified"
+        )
+
+    # Convert solver_dtype to torch dtype
+    if args.solver_dtype == "float32":
+        args.solver_dtype = torch.float32
+    elif args.solver_dtype == "float64":
+        args.solver_dtype = torch.float64
+    else:
+        raise ValueError("Unsupported solver_dtype: must be 'float32' or 'float64'")
+
+    main(args)
