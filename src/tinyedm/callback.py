@@ -41,7 +41,7 @@ class GenerateCallback(Callback):
         if trainer.current_epoch % self.every_n_epochs == 0:
             pl_module.eval()
             with torch.no_grad():
-                if self.solver.enble_ema:
+                if self.enable_ema:
                     opt = [x for x in trainer.optimizers if isinstance(x, EMAOptimizer)][0]
                     with opt.swap_ema_weights():
                         xT = self.solver.solve(pl_module, self.x0)
