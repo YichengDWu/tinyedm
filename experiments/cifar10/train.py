@@ -18,6 +18,7 @@ import torch.nn as nn
 import hydra
 import wandb
 from tinyedm.ema import EMA
+from omegaconf import DictConfig, OmegaConf
 
 
 class UNetWrapper(nn.Module):
@@ -31,7 +32,7 @@ class UNetWrapper(nn.Module):
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="CIFAR10")
-def main(cfg) -> None:
+def main(cfg: DictConfig) -> None:
     # Setting the seed
     L.seed_everything(cfg.seed)
 
@@ -79,7 +80,7 @@ def main(cfg) -> None:
     solver_dtype = torch.float64 if cfg.solver.dtype == "float64" else torch.float32
     solver = hydra.utils.instantiate(cfg.solver, dtype=solver_dtype)
 
-    wandb.init(**cfg.wandb)
+    wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
     logger = WandbLogger()
 
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
