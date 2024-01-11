@@ -12,7 +12,7 @@ dependencies = [
     "diffusers[torch]>=0.25.0",
     "torchmetrics>=1.2.1",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "MIT"}
 
