@@ -93,15 +93,23 @@ def main(cfg) -> None:
 
     logger.watch(model, log_freq=500)
 
-    if wandb.run.resumed:
-        ckpt_path = getattr(cfg, "ckpt_path", None)
-        if ckpt_path is None:
-            logger.info("No ckpt_path provided, using best_model_path from wandb")
-            ckpt_path = wandb.run.config.get("best_model_path")
+    ckpt_path = getattr(cfg, "ckpt_path", None)
+    # Three cases: 1) resume wandb run, 2) start a new run with ckpt_path, 3) start a new run without ckpt_path
+    if not wandb.run.resumed:
+        if cfg.ckpt_path is not None:
+            logger.info("Starting a new run with ckpt_path")
+            trainer.fit(model, datamodule=cifar10, ckpt_path=cfg.ckpt_path)
+        else:
+            logger.info("Starting a new run without ckpt_path")
+            trainer.fit(model, datamodule=cifar10)
+    elif ckpt_path is None:
+        logger.info("Resuming wandb run with ckpt_path saved in wandb")
+        ckpt_path = wandb.run.config.get("best_model_path")
         trainer.fit(model, datamodule=cifar10, ckpt_path=ckpt_path)
     else:
-        trainer.fit(model, datamodule=cifar10)
-
+        logger.info("Resuming wandb run with loacl ckpt_path")
+        trainer.fit(model, datamodule=cifar10, ckpt_path=ckpt_path)
+    
 
 if __name__ == "__main__":
     main()
