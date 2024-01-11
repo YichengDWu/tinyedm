@@ -9,6 +9,6 @@ Minimum implementation of EDM (Elucidating the Design Space of Diffusion-Based G
 
 ```
 git clone https://github.com/YichengDWu/tinyedm.git
-cd earth2mip && pip install .
+cd tinyedm && pip install .
 ```
 
