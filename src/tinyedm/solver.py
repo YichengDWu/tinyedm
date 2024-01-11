@@ -8,6 +8,23 @@ class DiffusionSolver(Protocol):
 
 
 class DeterministicSolver:
+    """
+    A deterministic solver for diffusion models.
+    
+    Args:
+        num_steps: The number of steps to take.
+        sigma_min: The minimum value of sigma.
+        sigma_max: The maximum value of sigma.
+        rho: The value of rho.
+        dtype: The dtype of the solver.
+        
+    Methods:
+        solve: Solve the diffusion model.
+            Args:
+                model: The diffusion model.
+                x0: The initial value. Assumed to be **standard normal**.
+    
+    """
     def __init__(
         self,
         num_steps: int = 18,
@@ -32,7 +49,7 @@ class DeterministicSolver:
         self.t_steps = torch.cat([t_steps, torch.zeros(1)])  # t_N = 0
 
     def solve(self, model, x0):
-        x1 = x0.to(self.dtype) * self.t_steps[0]
+        x1 = x0.to(self.dtype) * self.t_steps[0] 
         for i, (t0, t1) in enumerate(zip(self.t_steps[:-1], self.t_steps[1:])):
             x0 = x1
             denoised = model(x0.to(model.dtype), t0.to(model.dtype)).to(
@@ -42,8 +59,8 @@ class DeterministicSolver:
             x1 = x0 + (t1 - t0) * dx
 
             if i < self.num_steps - 1:
-                denoised = model(x0.to(model.dtype), t0.to(model.dtype)).to(self.dtype)
-                dx_prime = (x1 - denoised) / t1
+                denoised_prime = model(x1.to(model.dtype), t1.to(model.dtype)).to(self.dtype)
+                dx_prime = (x1 - denoised_prime) / t1
                 x1 = x0 + (t1 - t0) * (0.5 * dx + 0.5 * dx_prime)
 
         return x1.to(x0.dtype)
