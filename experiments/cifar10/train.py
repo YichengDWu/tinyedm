@@ -1,7 +1,15 @@
 import torch
 from tinyedm.datamodule import CIFAR10DataModule
-from tinyedm import Diffuser, Denoiser, EDM, GenerateCallback, UploadCheckpointCallback
+from tinyedm import (
+    Diffuser,
+    Denoiser,
+    EDM,
+    GenerateCallback,
+    UploadCheckpointCallback,
+    LogBestCkptCallback,
+)
 
+from pathlib import Path
 from omegaconf import OmegaConf
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -72,19 +80,22 @@ def main(cfg) -> None:
     solver_dtype = torch.float64 if cfg.solver.dtype == "float64" else torch.float32
     solver = hydra.utils.instantiate(cfg.solver, dtype=solver_dtype)
 
-    checkpoint_callback = ModelCheckpoint(dirpath=".", **cfg.checkpoint_callback)
-    generate_callback = GenerateCallback(solver=solver, **cfg.generate_callback)
-    upload_callback = UploadCheckpointCallback()
-    callbacks = [checkpoint_callback, generate_callback, upload_callback]
-
     wandb.init(**cfg.wandb)
     logger = WandbLogger()
+
+    checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
+    logckptpath_callback = LogBestCkptCallback()
+    generate_callback = GenerateCallback(solver=solver, **cfg.generate_callback)
+    upload_callback = UploadCheckpointCallback()
+    callbacks = [checkpoint_callback, logckptpath_callback, generate_callback, upload_callback]
+
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
 
     logger.watch(model, log_freq=500)
 
     if wandb.run.resumed:
-        trainer.fit(model, datamodule=cifar10, ckpt_path="best")
+        ckpt_path = wandb.run.summary.get("best_model_path")
+        trainer.fit(model, datamodule=cifar10, ckpt_path=ckpt_path)
     else:
         trainer.fit(model, datamodule=cifar10)
 

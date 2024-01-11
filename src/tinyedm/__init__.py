@@ -5,6 +5,7 @@ from .callback import (
     UploadCheckpointCallback,
     GenerateCallback,
     UploadCheckpointCallback,
+    LogBestCkptCallback,
 )
 from .solver import DeterministicSolver
 from .metric import WeightedMeanSquaredError

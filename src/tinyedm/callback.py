@@ -5,6 +5,16 @@ from torchvision.utils import make_grid
 import wandb
 
 
+class LogBestCkptCallback(Callback):
+    def __init__(self):
+        super().__init__()
+
+    def on_train_epoch_start(self, trainer, pl_module):
+        trainer.logger.experiment.summary[
+            "best_model_path"
+        ] = trainer.checkpoint_callback.best_model_path
+
+
 class GenerateCallback(Callback):
     def __init__(
         self,
@@ -19,14 +29,16 @@ class GenerateCallback(Callback):
         self.img_shape = img_shape
         self.every_n_epochs = every_n_epochs
 
+    def on_train_start(self, trainer, pl_module):
+        self.x0 = torch.randn(
+            self.num_samples, *self.img_shape, device=pl_module.device
+        )
+        
     def on_train_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
             pl_module.eval()
             with torch.no_grad():
-                x0 = torch.randn(
-                    self.num_samples, *self.img_shape, device=pl_module.device
-                )
-                xT = self.solver.solve(pl_module, x0)
+                xT = self.solver.solve(pl_module, self.x0)
                 # add to wandblogger
                 grid = make_grid(xT, nrow=4, normalize=True, value_range=(-1, 1))
                 trainer.logger.log_image(
