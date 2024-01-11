@@ -9,8 +9,6 @@ from tinyedm import (
     LogBestCkptCallback,
 )
 
-from pathlib import Path
-from omegaconf import OmegaConf
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 import lightning as L
@@ -19,6 +17,7 @@ from diffusers import UNet2DModel
 import torch.nn as nn
 import hydra
 import wandb
+from tinyedm.ema import EMA
 
 
 class UNetWrapper(nn.Module):
@@ -85,9 +84,23 @@ def main(cfg) -> None:
 
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
     logckptpath_callback = LogBestCkptCallback()
-    generate_callback = GenerateCallback(solver=solver, **cfg.generate_callback)
+    generate_callback = GenerateCallback(solver=solver, enable_ema=cfg.ema.enable, **cfg.generate_callback)
     upload_callback = UploadCheckpointCallback()
-    callbacks = [checkpoint_callback, logckptpath_callback, generate_callback, upload_callback]
+    callbacks = [
+        checkpoint_callback,
+        logckptpath_callback,
+        generate_callback,
+        upload_callback,
+    ]
+
+    if cfg.ema.enable:
+        ema_callback = EMA(
+            decay=cfg.ema.decay,
+            validate_original_weights=cfg.ema.validate_original_weights,
+            cpu_offload=cfg.ema.cpu_offload,
+            every_n_steps=cfg.ema.every_n_steps,
+        )
+        callbacks.append(ema_callback)
 
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
 
@@ -96,7 +109,7 @@ def main(cfg) -> None:
     ckpt_path = getattr(cfg, "ckpt_path", None)
     # Three cases: 1) resume wandb run, 2) start a new run with ckpt_path, 3) start a new run without ckpt_path
     if not wandb.run.resumed:
-        if cfg.ckpt_path is not None:
+        if ckpt_path is not None:
             print("Starting a new run with ckpt_path")
             trainer.fit(model, datamodule=cifar10, ckpt_path=cfg.ckpt_path)
         else:
@@ -109,7 +122,7 @@ def main(cfg) -> None:
     else:
         print("Resuming wandb run with loacl ckpt_path")
         trainer.fit(model, datamodule=cifar10, ckpt_path=ckpt_path)
-    
+
 
 if __name__ == "__main__":
     main()

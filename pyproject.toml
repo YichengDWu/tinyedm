@@ -11,6 +11,7 @@ dependencies = [
     "torchvision>=0.16.2",
     "diffusers[torch]>=0.25.0",
     "torchmetrics>=1.2.1",
+    "nemo-toolkit[all]>=1.22.0",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
