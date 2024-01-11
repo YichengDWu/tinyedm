@@ -10,10 +10,7 @@ class LogBestCkptCallback(Callback):
         super().__init__()
 
     def on_train_epoch_start(self, trainer, pl_module):
-        trainer.logger.experiment.summary[
-            "best_model_path"
-        ] = trainer.checkpoint_callback.best_model_path
-
+        trainer.logger.log_hyperparams({"best_model_path": trainer.checkpoint_callback.best_model_path})
 
 class GenerateCallback(Callback):
     def __init__(

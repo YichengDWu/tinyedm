@@ -9,6 +9,7 @@ seed: 42
 wandb:
     project: CIFAR10
     resume: True
+    reinit: False
 
 ema_callback:
     enabled: True

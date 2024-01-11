@@ -94,7 +94,7 @@ def main(cfg) -> None:
     logger.watch(model, log_freq=500)
 
     if wandb.run.resumed:
-        ckpt_path = wandb.run.summary.get("best_model_path")
+        ckpt_path = wandb.run.config.get("best_model_path")
         trainer.fit(model, datamodule=cifar10, ckpt_path=ckpt_path)
     else:
         trainer.fit(model, datamodule=cifar10)
