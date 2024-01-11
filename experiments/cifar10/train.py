@@ -84,7 +84,9 @@ def main(cfg) -> None:
 
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
     logckptpath_callback = LogBestCkptCallback()
-    generate_callback = GenerateCallback(solver=solver, enable_ema=cfg.ema.enable, **cfg.generate_callback)
+    generate_callback = GenerateCallback(
+        solver=solver, enable_ema=cfg.ema.enable, **cfg.generate_callback
+    )
     upload_callback = UploadCheckpointCallback()
     callbacks = [
         checkpoint_callback,

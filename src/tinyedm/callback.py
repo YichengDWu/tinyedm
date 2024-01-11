@@ -6,13 +6,17 @@ import wandb
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 from .ema import EMAOptimizer
 
+
 class LogBestCkptCallback(Callback):
     def __init__(self):
         super().__init__()
 
     @rank_zero_only
     def on_train_epoch_start(self, trainer, pl_module):
-        trainer.logger.log_hyperparams({"best_model_path": trainer.checkpoint_callback.best_model_path})
+        trainer.logger.log_hyperparams(
+            {"best_model_path": trainer.checkpoint_callback.best_model_path}
+        )
+
 
 class GenerateCallback(Callback):
     def __init__(
@@ -35,14 +39,16 @@ class GenerateCallback(Callback):
         self.x0 = torch.randn(
             self.num_samples, *self.img_shape, device=pl_module.device
         )
-        
+
     @rank_zero_only
     def on_train_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
             pl_module.eval()
             with torch.no_grad():
                 if self.enable_ema:
-                    opt = [x for x in trainer.optimizers if isinstance(x, EMAOptimizer)][0]
+                    opt = [
+                        x for x in trainer.optimizers if isinstance(x, EMAOptimizer)
+                    ][0]
                     with opt.swap_ema_weights():
                         xT = self.solver.solve(pl_module, self.x0)
                 else:
