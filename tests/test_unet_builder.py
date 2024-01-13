@@ -1,4 +1,4 @@
-from tinyedm.unet import (
+from tinyedm.networks import (
     get_decoder_out_channels,
     get_encoder_out_channels,
     get_skip_channels,
