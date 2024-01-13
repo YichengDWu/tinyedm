@@ -20,7 +20,7 @@ class EDMEmbedding(Protocol):
     @property
     def embedding_dim(self) -> int:
         ...
-        
+
     @property
     def num_classes(self) -> int | None:
         ...
@@ -36,9 +36,11 @@ class EDMDenoiser(Protocol):
     def sigma_data(self) -> float:
         ...
 
+
 class EDMSolver(Protocol):
     def solve(self, model: nn.Module, x0: Tensor, class_label: Tensor | None = None):
         ...
+
 
 class Diffuser:
     """
@@ -68,6 +70,7 @@ class Diffuser:
         noise = noise * sigma.view(-1, 1, 1, 1)
         return clean_image + noise, sigma
 
+
 class EDM(L.LightningModule):
     def __init__(
         self,
@@ -85,13 +88,13 @@ class EDM(L.LightningModule):
         self.diffuser = diffuser
         self.denoiser = denoiser
         self.embedding = embedding
-        
-        assert hasattr(self.embedding, "embedding_dim") and self.embedding.embedding_dim is not None, "Embedding must have an embedding_dim attribute."
-        self.u = (
-            Linear(embedding.embedding_dim, 1)
-            if use_uncertainty
-            else lambda x: torch.tensor(0.0)
-        )
+        self.use_uncertainty = use_uncertainty
+
+        assert (
+            hasattr(self.embedding, "embedding_dim")
+            and self.embedding.embedding_dim is not None
+        ), "Embedding must have an embedding_dim attribute."
+        self.u = Linear(embedding.embedding_dim, 1) if use_uncertainty else None
         self.sigma_data = sigma_data if sigma_data is not None else denoiser.sigma_data
         self.lr = lr
         self.betas = betas
@@ -104,22 +107,25 @@ class EDM(L.LightningModule):
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
         weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
-        uncertainty = self.u(embedding).flatten()
-        loss = (
-            self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
-            + uncertainty.mean()
-        )
+        if self.u is not None:
+            uncertainty = self.u(embedding).flatten()
+            loss = self.mse(weight / uncertainty.exp(), denoised_image, clean_image) + uncertainty.mean()
+        else:
+            loss = self.mse(weight, denoised_image, clean_image)
+
         self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=True)
         return loss
 
     def configure_optimizers(self):
         return optim.Adam(self.parameters(), lr=self.lr, betas=self.betas)
 
-    def forward(self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
+    def forward(
+        self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
+    ) -> Tensor:
         embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
         return denoised_image
-    
+
     @property
     def num_classes(self) -> int | None:
         return self.embedding.num_classes

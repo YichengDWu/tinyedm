@@ -25,7 +25,7 @@ def main(cfg: DictConfig) -> None:
     datamodule = hydra.utils.instantiate(cfg.datamodule)
     datamodule.prepare_data()
     datamodule.setup("fit")
-    
+
     diffuser = hydra.utils.instantiate(cfg.diffuser)
     embedding = hydra.utils.instantiate(cfg.embedding)
     denoiser = hydra.utils.instantiate(cfg.denoiser)
@@ -37,8 +37,7 @@ def main(cfg: DictConfig) -> None:
         embedding=embedding,
         **cfg.model,
     )
-    print(model)
-    
+
     solver = hydra.utils.instantiate(cfg.solver, dtype=torch.float32)
 
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)

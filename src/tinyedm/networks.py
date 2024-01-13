@@ -509,7 +509,6 @@ class Denoiser(nn.Module):
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
-        self.u = Linear(embedding_dim, 1)
         self.gain = nn.Parameter(torch.ones(1))
 
         self.encoder_blocks = build_encoder_blocks(
