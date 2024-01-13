@@ -29,9 +29,11 @@ class Conv2d(nn.Module):
         w = normalize(self.weight) / np.sqrt(fan_in)
         x = F.conv2d(x, w, padding="same")
         return x
-    
+
     def extra_repr(self) -> str:
-        return f'{self.in_channels}, {self.out_channels}, kernel_size={self.kernel_size}'
+        return (
+            f"{self.in_channels}, {self.out_channels}, kernel_size={self.kernel_size}"
+        )
 
 
 class Linear(nn.Module):
@@ -52,7 +54,7 @@ class Linear(nn.Module):
         return x
 
     def extra_repr(self) -> str:
-        return f'{self.in_features}, {self.out_features}'
+        return f"{self.in_features}, {self.out_features}"
 
 
 class Upsample(nn.Module):
@@ -60,7 +62,7 @@ class Upsample(nn.Module):
         super().__init__()
 
     def forward(self, x):
-        return F.interpolate(x,  scale_factor=2, mode="nearest")
+        return F.interpolate(x, scale_factor=2, mode="nearest")
 
 
 def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
@@ -121,16 +123,18 @@ class CosineAttention(nn.Module):
     def forward(self, x):
         input = x
         b, c, h, w = x.shape
-        x_proj = self.c_attn(x) # (b, c, h, w) -> (b, 3*c, h, w)
-        x_proj = x_proj.view(b, -1, h * w).transpose(1, 2) # (b, h*w, 3*c)
+        x_proj = self.c_attn(x)  # (b, c, h, w) -> (b, 3*c, h, w)
+        x_proj = x_proj.view(b, -1, h * w).transpose(1, 2)  # (b, h*w, 3*c)
 
         q, k, v = x_proj.chunk(3, -1)
-        q = q.view(b, -1, self.num_heads, self.head_dim).transpose(1, 2) # (b, num_heads, h*w, head_dim)
+        q = q.view(b, -1, self.num_heads, self.head_dim).transpose(
+            1, 2
+        )  # (b, num_heads, h*w, head_dim)
         k = k.view(b, -1, self.num_heads, self.head_dim).transpose(1, 2)
         v = v.view(b, -1, self.num_heads, self.head_dim).transpose(1, 2)
         q, k, v = pixel_norm(q), pixel_norm(k), pixel_norm(v)
-        
-        res = F.scaled_dot_product_attention(q, k, v) # (b, num_heads, h*w, head_dim)
+
+        res = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
 
         res = res.transpose(-1, -2).reshape(b, -1, h, w)
         res = self.c_proj(res)
@@ -167,7 +171,9 @@ class EncoderBlock(nn.Module):
         self.conv_3x3_1 = Conv2d(out_channels, out_channels, 3)
         self.conv_3x3_2 = Conv2d(out_channels, out_channels, 3)
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.attention = CosineAttention(out_channels, head_dim) if attention else nn.Identity()
+        self.attention = (
+            CosineAttention(out_channels, head_dim) if attention else nn.Identity()
+        )
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
@@ -224,7 +230,9 @@ class DecoderBlock(nn.Module):
         self.conv_3x3_1 = Conv2d(total_input_channels, out_channels, 3)
         self.conv_3x3_2 = Conv2d(out_channels, out_channels, 3)
         self.dropout = nn.Dropout(dropout_rate)
-        self.attention = CosineAttention(out_channels, head_dim) if attention else nn.Identity()
+        self.attention = (
+            CosineAttention(out_channels, head_dim) if attention else nn.Identity()
+        )
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
@@ -283,7 +291,6 @@ class Embedding(nn.Module):
             embedding = mp_add(embedding, class_emb, self.add_factor)
         out = mp_silu(embedding)
         return out
-
 
 
 def get_encoder_blocks_types() -> tuple[str]:
@@ -464,6 +471,7 @@ class UNet2DModel(nn.Module):
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
+        self.u = Linear(embedding_dim, 1)
         self.gain = nn.Parameter(torch.ones(1))
 
         self.encoder_blocks = build_encoder_blocks(
@@ -490,7 +498,13 @@ class UNet2DModel(nn.Module):
             head_dim=head_dim,
         )
 
-    def forward(self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None):
+    @property
+    def embedding_dim(self):
+        return self.embedding_dim
+
+    def forward(
+        self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
+    ):
         if sigma.ndim == 0:
             sigma = sigma * torch.ones(
                 noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
@@ -500,6 +514,8 @@ class UNet2DModel(nn.Module):
         embedding = self.embed(
             sigma, class_label
         )  # c_noise is already calculated in the embedding block
+
+        uncertainty = self.u(embedding)
 
         sigma = sigma.view(-1, 1, 1, 1)
         c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
@@ -511,7 +527,7 @@ class UNet2DModel(nn.Module):
         ones_tensor = torch.ones_like(x[:, 0:1, :, :])
         x = torch.cat((x, ones_tensor), dim=1)
         x = self.conv_in(x)
-        
+
         skips = [
             x,
         ]
@@ -528,7 +544,7 @@ class UNet2DModel(nn.Module):
                 x = block(x, embedding)
 
         # Output block
-        out = self.conv_out(x) * self.gain
-        out = out * c_out + noisy_image * c_skip
+        denoised_image = self.conv_out(x) * self.gain
+        denoised_image = denoised_image * c_out + noisy_image * c_skip
 
-        return out
+        return denoised_image, uncertainty

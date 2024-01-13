@@ -9,4 +9,4 @@ from .callback import (
 )
 from .solver import DeterministicSolver
 from .metric import WeightedMeanSquaredError
-from .unet import UNet2DModel
+from .unet import UNet2DModel, Linear, Conv2d
