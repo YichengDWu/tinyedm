@@ -30,15 +30,22 @@ generate_callback:
     every_n_epochs: 5
 
 model:
+    sigma_data: 0.5
+    use_uncertainty: False
     train_ds:
         batch_size: 128
         num_workers: 6
 
     optim:
-        name: adamw
+        name: adam
         lr: 0.0001
         weight_decay: 0.001
-        
+
+diffuser:
+    _target_: tinyedm.EDMDiffuser
+    P_std: 1.2
+    P_mean: -1.2
+
 solver:
     _target_: tinyedm.DeterministicSolver
     num_steps: 18

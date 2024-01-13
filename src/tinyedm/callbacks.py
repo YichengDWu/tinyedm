@@ -1,5 +1,5 @@
 from lightning.pytorch.callbacks import Callback
-from .solver import DiffusionSolver
+from .solvers import DiffusionSolver
 import torch
 from torchvision.utils import make_grid
 import wandb

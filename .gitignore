@@ -160,3 +160,4 @@ datasets/
 lightning_logs/
 .pdm-python
 outputs/
+notebooks/

@@ -1,8 +1,7 @@
 import torch
 from tinyedm.datamodule import CIFAR10DataModule
 from tinyedm import (
-    Diffuser,
-    Denoiser,
+    EDMDenoiser,
     EDM,
     GenerateCallback,
     UploadCheckpointCallback,
@@ -35,11 +34,12 @@ class UNetWrapper(nn.Module):
 def main(cfg: DictConfig) -> None:
     # Setting the seed
     L.seed_everything(cfg.seed)
+    torch.set_float32_matmul_precision('medium')
 
     cifar10 = CIFAR10DataModule(**cfg.model.train_ds)
     cifar10.prepare_data()
     cifar10.setup("fit")
-    diffuser = Diffuser()
+    diffuser = hydra.utils.instantiate(cfg.diffuser)
 
     # set up denoiser
     net = UNet2DModel(
@@ -73,9 +73,17 @@ def main(cfg: DictConfig) -> None:
         ),
     )
     net = UNetWrapper(net)
-    denoiser = Denoiser(net)
+    denoiser = EDMDenoiser(net, cfg.model.sigma_data)
 
-    model = EDM(denoiser=denoiser, diffuser=diffuser)
+    # TODO: add positional embedding
+    model = EDM(
+        denoiser=denoiser,
+        diffuser=diffuser,
+        embedding=lambda x, y: x,
+        lr=cfg.model.optim.lr,
+        use_uncertainty=cfg.model.use_uncertainty,
+        sigma_data=cfg.model.sigma_data,
+    )
 
     solver_dtype = torch.float64 if cfg.solver.dtype == "float64" else torch.float32
     solver = hydra.utils.instantiate(cfg.solver, dtype=solver_dtype)
