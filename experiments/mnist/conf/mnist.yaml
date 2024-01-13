@@ -35,7 +35,7 @@ denoiser:
     decoder_block_types: ["DecA", "Dec", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA"]
     encoder_out_channels: [128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512]
     decoder_out_channels: [512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 128, 128, 128, 128]
-    skip_connections: [2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15]
+    skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
 
 
 model:
