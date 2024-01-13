@@ -109,7 +109,7 @@ class EDM(L.LightningModule):
             self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
             + uncertainty.mean()
         )
-        self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
+        self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=True)
         return loss
 
     def configure_optimizers(self):
