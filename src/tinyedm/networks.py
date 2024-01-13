@@ -91,14 +91,12 @@ class ClassEmbedding(nn.Module):
         self.num_embeddings = num_embeddings
         self.linear = Linear(num_embeddings, embedding_dim)
 
-    def forward(self, class_idx: Tensor):
-        class_emb = F.one_hot(class_idx, self.num_embeddings).to(
-            dtype=self.linear.dtype, device=self.linear.device
-        )
+    def forward(self, class_labels: Tensor):
+        class_emb = F.one_hot(class_labels, self.num_embeddings)
         return self.linear(class_emb * np.sqrt(self.num_embeddings))
 
 
-class FourierFeatures(nn.Module):
+class FourierEmbedding(nn.Module):
     def __init__(self, embedding_dim: int):
         super().__init__()
         self.register_buffer("freqs", torch.randn(embedding_dim))
@@ -108,6 +106,49 @@ class FourierFeatures(nn.Module):
         x = torch.outer(x.flatten(), self.freqs) + self.phases
         x = torch.cos(2 * torch.pi * x) * np.sqrt(2)
         return x
+
+
+class Embedding(nn.Module):
+    def __init__(
+        self,
+        fourier_dim: int,
+        embedding_dim: int,
+        num_classes: int | None = None,
+        add_factor: float = 0.5,
+    ):
+        super().__init__()
+        self.add_factor = add_factor
+        self._embedding_dim = embedding_dim
+        self._num_classes = num_classes
+        self.fourier_features = FourierEmbedding(fourier_dim)
+        self.sigma_embed = Linear(fourier_dim, embedding_dim)
+        self.class_embed = None
+        if num_classes is not None:
+            self.class_embed = ClassEmbedding(num_classes, embedding_dim)
+
+    @property
+    def embedding_dim(self) -> int:
+        return self._embedding_dim
+
+    @property
+    def num_classes(self) -> int | None:
+        return self._num_classes
+
+    def forward(self, sigmas, class_labels=None):
+        c_noise = sigmas.log() / 4
+        embedding = self.fourier_features(c_noise)
+        embedding = self.sigma_embed(embedding)
+
+        if self.class_embed is not None:
+            if class_labels is None:
+                raise ValueError(
+                    "class_labels should be provided when doing class conditioning"
+                )
+
+            class_embedding = self.class_embed(class_labels)
+            embedding = mp_add(embedding, class_embedding, self.add_factor)
+        out = mp_silu(embedding)
+        return out
 
 
 class CosineAttention(nn.Module):
@@ -260,39 +301,6 @@ class DecoderBlock(nn.Module):
         return out
 
 
-class Embedding(nn.Module):
-    def __init__(
-        self,
-        fourier_dim: int,
-        output_dim: int,
-        num_class_embeds: int | None = None,
-        add_factor: float = 0.5,
-    ):
-        super().__init__()
-        self.add_factor = add_factor
-        self.fourier_features = FourierFeatures(fourier_dim)
-        self.sigma_embed = Linear(fourier_dim, output_dim)
-        self.class_embed = None
-        if num_class_embeds is not None:
-            self.class_embed = ClassEmbedding(num_class_embeds, output_dim)
-
-    def forward(self, sigmas, class_labels=None):
-        c_noise = sigmas.log() / 4
-        embedding = self.fourier_features(c_noise)
-        embedding = self.sigma_embed(embedding)
-
-        if self.class_embed is not None:
-            if class_labels is None:
-                raise ValueError(
-                    "class_labels should be provided when doing class conditioning"
-                )
-
-            class_emb = self.class_embed(class_labels)
-            embedding = mp_add(embedding, class_emb, self.add_factor)
-        out = mp_silu(embedding)
-        return out
-
-
 def get_encoder_blocks_types() -> tuple[str]:
     return (
         "Enc",
@@ -371,13 +379,35 @@ def get_decoder_out_channels() -> tuple[int]:
 
 def get_skip_connections() -> tuple[int]:
     """The indices of decoder blocks that have skip connections."""
-    return (2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20)
+    return (
+        False,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        True,
+        True,
+        True,
+        True,
+    )
 
 
 def get_skip_channels(
     encoder_out_channels: tuple[int],
     decoder_out_channels: tuple[int],
-    skip_connections: tuple[int],
+    skip_connections: tuple[bool],
 ) -> tuple[int]:
     skip_channels = np.zeros(len(decoder_out_channels), dtype=int)
     skip_channels[list(skip_connections)] = list(encoder_out_channels[::-1]) + [
@@ -429,20 +459,18 @@ def build_decoder_blocks(block_types, out_channels, skip_channels, **kwargs):
     return decoder_blocks
 
 
-class UNet2DModel(nn.Module):
+class Denoiser(nn.Module):
     def __init__(
         self,
         in_channels: int = 3,
         out_channels: int = 3,
-        fourier_dim: int = 192,
         encoder_block_types: tuple[str] = get_encoder_blocks_types(),
         decoder_block_types: tuple[str] = get_decoder_blocks_types(),
         encoder_out_channels: tuple[int] = get_encoder_out_channels(),
         decoder_out_channels: tuple[int] = get_decoder_out_channels(),
-        skip_connections: tuple[int] = get_skip_connections(),
+        skip_connections: tuple[bool] = get_skip_connections(),
         dropout_rate: float = 0.0,
-        num_class_embeds: int | None = None,
-        embedding_add_factor: float = 0.5,
+        sigma_data: float = 0.5,
         encoder_add_factor: float = 0.3,
         decoder_add_factor: float = 0.3,
         decoder_cat_factor: float = 0.5,
@@ -450,24 +478,34 @@ class UNet2DModel(nn.Module):
         head_dim: int = 64,
     ):
         super().__init__()
-        assert len(encoder_block_types) == len(
-            encoder_out_channels
-        ), "encoder_block_typs and encoder_out_channels must have the same length"
-        assert len(decoder_block_types) == len(
-            decoder_out_channels
-        ), "decoder_block_types and decoder_out_channels must have the same length"
         assert (
-            len(skip_connections) == len(encoder_out_channels) + 1
-        ), "skip_connections must have the same length as encoder_out_channels + 1"
+            len(encoder_block_types) == len(encoder_out_channels)
+        ), f"encoder_block_types and encoder_out_channels must have the same length, got {len(encoder_block_types)} and {len(encoder_out_channels)}"
+        assert (
+            len(decoder_block_types) == len(decoder_out_channels)
+        ), f"decoder_block_types and decoder_out_channels must have the same length, got {len(decoder_block_types)} and {len(decoder_out_channels)}"
+        assert (
+            len(skip_connections) == len(decoder_out_channels)
+        ), f"skip_connections must have the same length as decoder_out_channels, got {len(skip_connections)} and {len(decoder_out_channels)}"
 
-        self.sigma_data = 0.5
-        self.skip_connections = skip_connections
-        self.embed = Embedding(
-            fourier_dim,
-            embedding_dim,
-            num_class_embeds=num_class_embeds,
-            add_factor=embedding_add_factor,
+        (
+            encoder_block_types,
+            decoder_block_types,
+            encoder_out_channels,
+            decoder_out_channels,
+            skip_connections,
+        ) = map(
+            tuple,
+            (
+                encoder_block_types,
+                decoder_block_types,
+                encoder_out_channels,
+                decoder_out_channels,
+                skip_connections,
+            ),
         )
+        self._sigma_data = sigma_data
+        self.skip_connections = skip_connections
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
@@ -499,23 +537,16 @@ class UNet2DModel(nn.Module):
         )
 
     @property
-    def embedding_dim(self):
-        return self.embedding_dim
+    def sigma_data(self) -> float:
+        return self._sigma_data
 
     def forward(
-        self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
+        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
     ):
         if sigma.ndim == 0:
             sigma = sigma * torch.ones(
                 noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
             )
-
-        # Embedding block
-        embedding = self.embed(
-            sigma, class_label
-        )  # c_noise is already calculated in the embedding block
-
-        uncertainty = self.u(embedding)
 
         sigma = sigma.view(-1, 1, 1, 1)
         c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
@@ -528,18 +559,17 @@ class UNet2DModel(nn.Module):
         x = torch.cat((x, ones_tensor), dim=1)
         x = self.conv_in(x)
 
-        skips = [
-            x,
-        ]
+        skips = []
+        skips.append(x)
         for block in self.encoder_blocks:
             x = block(x, embedding)
             skips.append(x)
 
-        j = len(self.skip_connections) - 1
-        for i, block in enumerate(self.decoder_blocks):
-            if i in self.skip_connections:
-                x = block(x, embedding, skips[j])
-                j -= 1
+        for i, (block, has_skip) in enumerate(
+            zip(self.decoder_blocks, self.skip_connections)
+        ):
+            if has_skip:
+                x = block(x, embedding, skips.pop())
             else:
                 x = block(x, embedding)
 
@@ -547,4 +577,49 @@ class UNet2DModel(nn.Module):
         denoised_image = self.conv_out(x) * self.gain
         denoised_image = denoised_image * c_out + noisy_image * c_skip
 
-        return denoised_image, uncertainty
+        return denoised_image
+
+
+class DenoiserWrapper(nn.Module):
+    """
+    A denoiser proposed in [1]. It wraps a neural network with a skip-connection-like structure.
+
+    Parameters:
+        net: The neural network.
+        sigma_data: The estimated standard deviation of the data.
+
+    Returns:
+        The denoised image.
+
+    [1]: Karras T, Aittala M, Aila T, et al. Elucidating the design space of diffusion-based generative models[J].
+         Advances in Neural Information Processing Systems, 2022, 35: 26565-26577.
+
+
+    """
+
+    def __init__(self, net: nn.Module, sigma_data: float):
+        super().__init__()
+
+        self.net = net
+        self._sigma_data = sigma_data
+
+    @property
+    def sigma_data(self) -> float:
+        return self._sigma_data
+
+    def forward(
+        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
+    ) -> Tensor:
+        if sigma.ndim == 0:
+            sigma = sigma * torch.ones(
+                noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
+            )
+        sigma = sigma.view(-1, 1, 1, 1)
+        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
+        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
+        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
+        c_noise = sigma.log() / 4
+
+        F = self.net(c_in * noisy_image, c_noise.flatten(), embedding)
+        D = c_skip * noisy_image + c_out * F
+        return D

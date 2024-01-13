@@ -13,17 +13,18 @@ def test_skip_channels():
 
     assert (
         len(decoder_out_channels) == 21
-    ), "Expected 21 decoder out channels, got {len(decoder_out_channels)}"
+    ), f"Expected 21 decoder out channels, got {len(decoder_out_channels)}"
     assert (
         len(encoder_out_channels) == 15
-    ), "Expected 15 encoder out channels, got {len(encoder_out_channels)}"
+    ), f"Expected 15 encoder out channels, got {len(encoder_out_channels)}"
     assert (
-        len(skip_connections) == 16
-    ), "Expected 16 skip connections, got {len(skip_connections)}"
+        len(skip_connections) == 21
+    ), f"Expected 21 skip connections, got {len(skip_connections)}"
+
     skip_channels = get_skip_channels(
         encoder_out_channels, decoder_out_channels, skip_connections
     )
 
     assert (
-        len(skip_channels) == 16
-    ), "Expected 16 skip channels, got {len(skip_channels)}"
+        len(skip_channels) == 21
+    ), f"Expected 21 skip channels, got {len(skip_channels)}"
