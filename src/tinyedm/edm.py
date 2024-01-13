@@ -104,7 +104,7 @@ class EDM(L.LightningModule):
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
         weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
-        uncertainty = self.u(embedding)
+        uncertainty = self.u(embedding).flatten()
         loss = (
             self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
             + uncertainty.mean()
