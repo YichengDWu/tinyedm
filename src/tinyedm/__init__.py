@@ -1,4 +1,4 @@
-from .edm import EDM, EDMDiffuser, EDMDenoiser
+from .edm import EDM, Diffuser
 from .callbacks import (
     UploadCheckpointCallback,
     GenerateCallback,
@@ -7,4 +7,4 @@ from .callbacks import (
 )
 from .solvers import DeterministicSolver
 from .metric import WeightedMeanSquaredError
-from .networks import UNet2DModel, Linear, Conv2d
+from .networks import Denoiser, Linear, Conv2d, Embedding, DenoiserWrapper

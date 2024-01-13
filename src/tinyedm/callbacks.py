@@ -1,5 +1,5 @@
 from lightning.pytorch.callbacks import Callback
-from .solvers import DiffusionSolver
+from .edm import EDMSolver
 import torch
 from torchvision.utils import make_grid
 import wandb
@@ -21,7 +21,7 @@ class LogBestCkptCallback(Callback):
 class GenerateCallback(Callback):
     def __init__(
         self,
-        solver: DiffusionSolver,
+        solver: EDMSolver,
         enable_ema: True,
         num_samples: int = 8,
         img_shape: tuple[int, int, int] = (3, 32, 32),
@@ -36,6 +36,14 @@ class GenerateCallback(Callback):
 
     @rank_zero_only
     def on_train_start(self, trainer, pl_module):
+        use_labels = pl_module.num_classes is not None
+        if use_labels:
+            # randomly sample labels
+            self.class_labels = torch.randint(
+                0, pl_module.num_classes, (self.num_samples,), device=pl_module.device
+            )
+        else:
+            self.class_labels = "generated"
         self.x0 = torch.randn(
             self.num_samples, *self.img_shape, device=pl_module.device
         )
@@ -50,13 +58,13 @@ class GenerateCallback(Callback):
                         x for x in trainer.optimizers if isinstance(x, EMAOptimizer)
                     ][0]
                     with opt.swap_ema_weights():
-                        xT = self.solver.solve(pl_module, self.x0)
+                        xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 else:
-                    xT = self.solver.solve(pl_module, self.x0)
+                    xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
                 grid = make_grid(xT, nrow=4, normalize=True, value_range=(-1, 1))
                 trainer.logger.log_image(
-                    key="generated", images=[grid], step=trainer.current_epoch
+                    key=self.class_labels, images=[grid], step=trainer.current_epoch
                 )
 
             pl_module.train()

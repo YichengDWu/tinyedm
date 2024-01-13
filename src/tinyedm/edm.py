@@ -7,22 +7,26 @@ from .networks import Linear
 from typing import Protocol
 
 
-class DiffuserProtocol(Protocol):
+class EDMDiffuser(Protocol):
     @torch.no_grad()
     def __call__(self, clean_image: Tensor) -> tuple[Tensor, Tensor]:
         ...
 
 
-class EmbeddingProtocol(Protocol):
+class EDMEmbedding(Protocol):
     def __call__(self, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
         ...
 
     @property
     def embedding_dim(self) -> int:
         ...
+        
+    @property
+    def num_classes(self) -> int | None:
+        ...
 
 
-class DenoiserProtocol(Protocol):
+class EDMDenoiser(Protocol):
     def __call__(
         self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
     ) -> Tensor:
@@ -32,8 +36,11 @@ class DenoiserProtocol(Protocol):
     def sigma_data(self) -> float:
         ...
 
+class EDMSolver(Protocol):
+    def solve(self, model: nn.Module, x0: Tensor, class_label: Tensor | None = None):
+        ...
 
-class EDMDiffuser:
+class Diffuser:
     """
     A diffusion model that adds Gaussian noise to the input. The noise is sampled from
 
@@ -61,61 +68,15 @@ class EDMDiffuser:
         noise = noise * sigma.view(-1, 1, 1, 1)
         return clean_image + noise, sigma
 
-
-class EDMDenoiser(nn.Module):
-    """
-    A denoiser proposed in [1]. It wraps a neural network with a skip-connection-like structure.
-
-    Parameters:
-        net: The neural network.
-        sigma_data: The estimated standard deviation of the data.
-
-    Returns:
-        The denoised image.
-
-    [1]: Karras T, Aittala M, Aila T, et al. Elucidating the design space of diffusion-based generative models[J].
-         Advances in Neural Information Processing Systems, 2022, 35: 26565-26577.
-
-
-    """
-
-    def __init__(self, net: nn.Module, sigma_data: float):
-        super().__init__()
-
-        self.net = net
-        self._sigma_data = sigma_data
-
-    @property
-    def sigma_data(self) -> float:
-        return self._sigma_data
-
-    def forward(
-        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
-    ) -> Tensor:
-        if sigma.ndim == 0:
-            sigma = sigma * torch.ones(
-                noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
-            )
-        sigma = sigma.view(-1, 1, 1, 1)
-        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
-        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
-        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
-        c_noise = sigma.log() / 4
-
-        F = self.net(c_in * noisy_image, c_noise.flatten())
-        D = c_skip * noisy_image + c_out * F
-        return D
-
-
 class EDM(L.LightningModule):
     def __init__(
         self,
         *,
-        diffuser: DiffuserProtocol,
-        denoiser: DenoiserProtocol,
-        embedding: EmbeddingProtocol,
-        sigma_data: float,
+        diffuser: EDMDiffuser,
+        denoiser: EDMDenoiser,
+        embedding: EDMEmbedding,
         use_uncertainty: bool,
+        sigma_data: float | None = None,
         lr: float = 1e-4,
         betas: tuple[float, float] = (0.9, 0.999),
     ) -> None:
@@ -124,12 +85,14 @@ class EDM(L.LightningModule):
         self.diffuser = diffuser
         self.denoiser = denoiser
         self.embedding = embedding
+        
+        assert hasattr(self.embedding, "embedding_dim") and self.embedding.embedding_dim is not None, "Embedding must have an embedding_dim attribute."
         self.u = (
             Linear(embedding.embedding_dim, 1)
             if use_uncertainty
             else lambda x: torch.tensor(0.0)
         )
-        self.sigma_data = sigma_data
+        self.sigma_data = sigma_data if sigma_data is not None else denoiser.sigma_data
         self.lr = lr
         self.betas = betas
         self.mse = WeightedMeanSquaredError()
@@ -146,8 +109,17 @@ class EDM(L.LightningModule):
             self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
             + uncertainty.mean()
         )
-        self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
+        self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=True)
         return loss
 
     def configure_optimizers(self):
         return optim.Adam(self.parameters(), lr=self.lr, betas=self.betas)
+
+    def forward(self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
+        embedding = self.embedding(sigma, class_label)
+        denoised_image = self.denoiser(noisy_image, sigma, embedding)
+        return denoised_image
+    
+    @property
+    def num_classes(self) -> int | None:
+        return self.embedding.num_classes

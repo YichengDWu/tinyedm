@@ -1,7 +1,7 @@
 import torch
 from tinyedm.datamodule import CIFAR10DataModule
 from tinyedm import (
-    EDMDenoiser,
+    DenoiserWrapper,
     EDM,
     GenerateCallback,
     UploadCheckpointCallback,
@@ -30,11 +30,11 @@ class UNetWrapper(nn.Module):
         return outputs.sample
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="CIFAR10")
+@hydra.main(version_base=None, config_path="conf", config_name="cirfar10")
 def main(cfg: DictConfig) -> None:
     # Setting the seed
     L.seed_everything(cfg.seed)
-    torch.set_float32_matmul_precision('medium')
+    torch.set_float32_matmul_precision("medium")
 
     cifar10 = CIFAR10DataModule(**cfg.model.train_ds)
     cifar10.prepare_data()
@@ -73,7 +73,7 @@ def main(cfg: DictConfig) -> None:
         ),
     )
     net = UNetWrapper(net)
-    denoiser = EDMDenoiser(net, cfg.model.sigma_data)
+    denoiser = DenoiserWrapper(net, cfg.model.sigma_data)
 
     # TODO: add positional embedding
     model = EDM(
