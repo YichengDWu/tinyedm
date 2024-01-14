@@ -90,7 +90,7 @@ class EDM(L.LightningModule):
         self.denoiser = denoiser
         self.embedding = embedding
         self.use_uncertainty = use_uncertainty
-        self.t_ref = warmup_steps
+        self.warmup_steps = warmup_steps
 
         assert (
             hasattr(self.embedding, "embedding_dim")
@@ -121,7 +121,7 @@ class EDM(L.LightningModule):
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=self.betas)
-        lr_scheduler = self.get_inverse_sqrt_lr_scheduler(optimizer, self.lr, self.t_ref)
+        lr_scheduler = self.get_inverse_sqrt_lr_scheduler(optimizer, self.lr, self.warmup_steps)
         return {
             'optimizer': optimizer,
             'lr_scheduler': {
