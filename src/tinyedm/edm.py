@@ -8,12 +8,20 @@ from typing import Protocol
 
 
 class EDMDiffuser(Protocol):
+    """
+    A diffuser is defined as a function that takes in a clean image and outputs a noisy image and 
+    the noise level used to generate the noisy image.
+    """
     @torch.no_grad()
     def __call__(self, clean_image: Tensor) -> tuple[Tensor, Tensor]:
         ...
 
 
 class EDMEmbedding(Protocol):
+    """
+    An embedding that takes in a noise level and an **optional** class label (guidance) and outputs an embedding 
+    that is then fed into the denoiser.
+    """
     def __call__(self, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
         ...
 
@@ -27,8 +35,12 @@ class EDMEmbedding(Protocol):
 
 
 class EDMDenoiser(Protocol):
+    """
+    A denoiser that takes in a noisy image, the noise level, and an embedding and outputs a denoised image.
+    
+    """
     def __call__(
-        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
+        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor
     ) -> Tensor:
         ...
 
@@ -38,6 +50,11 @@ class EDMDenoiser(Protocol):
 
 
 class EDMSolver(Protocol):
+    """
+    A solver that takes in a model, a Gaussian noise sampled from the standard normal distribution, 
+    and an optional class label. It iteratively solves the probability flow ODE and outputs the final
+    image.
+    """
     def solve(self, model: nn.Module, x0: Tensor, class_label: Tensor | None = None):
         ...
 

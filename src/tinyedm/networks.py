@@ -139,14 +139,14 @@ class Embedding(nn.Module):
         embedding = self.fourier_features(c_noise)
         embedding = self.sigma_embed(embedding)
 
-        if self.class_embed is not None:
-            if class_labels is None:
+        if class_labels is not None:
+            if self.class_embed is None:
                 raise ValueError(
-                    "class_labels should be provided when doing class conditioning"
+                    "class_labels is not None, but num_classes is None. "
                 )
-
             class_embedding = self.class_embed(class_labels)
             embedding = mp_add(embedding, class_embedding, self.add_factor)
+
         out = mp_silu(embedding)
         return out
 
@@ -540,7 +540,7 @@ class Denoiser(nn.Module):
         return self._sigma_data
 
     def forward(
-        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
+        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor
     ):
         if sigma.ndim == 0:
             sigma = sigma * torch.ones(
