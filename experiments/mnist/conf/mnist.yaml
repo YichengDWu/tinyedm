@@ -41,8 +41,7 @@ denoiser:
 model:
     use_uncertainty: True
     lr: 0.0001
-    alpha_ref: 0.01
-    t_ref: 1000
+    warmup_steps: 1000
 
 
 solver:
