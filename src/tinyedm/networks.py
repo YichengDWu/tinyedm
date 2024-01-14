@@ -218,7 +218,7 @@ class EncoderBlock(nn.Module):
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
-        self.gain = nn.Parameter(torch.ones(1))
+        self.gain = nn.Parameter(torch.zeros(1))
 
     def forward(self, input: Tensor, embedding: Tensor) -> Tensor:
         x = self.resample(input)
@@ -277,7 +277,7 @@ class DecoderBlock(nn.Module):
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
-        self.gain = nn.Parameter(torch.ones(1))
+        self.gain = nn.Parameter(torch.zeros(1))
 
     def forward(
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
@@ -509,7 +509,7 @@ class Denoiser(nn.Module):
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
-        self.gain = nn.Parameter(torch.ones(1))
+        self.gain = nn.Parameter(torch.zeros(1))
 
         self.encoder_blocks = build_encoder_blocks(
             encoder_block_types,
