@@ -81,7 +81,13 @@ def mp_add(a: Tensor, b: Tensor, t: float = 0.3) -> Tensor:
 def mp_cat(a: Tensor, b: Tensor, t: float = 0.5) -> Tensor:
     N_a, N_b = a[0].numel(), b[0].numel()
     scale = np.sqrt((N_a + N_b) / (t**2 + (1 - t) ** 2), dtype=np.float32)
-    out = torch.cat([(1 - t) / np.sqrt(N_a, dtype=np.float32) * a, t / np.sqrt(N_b, dtype=np.float32) * b], dim=1)
+    out = torch.cat(
+        [
+            (1 - t) / np.sqrt(N_a, dtype=np.float32) * a,
+            t / np.sqrt(N_b, dtype=np.float32) * b,
+        ],
+        dim=1,
+    )
     return out * scale
 
 
