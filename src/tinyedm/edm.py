@@ -3,9 +3,10 @@ import torch
 from torch import Tensor, nn, optim
 from .metric import WeightedMeanSquaredError
 from .networks import Linear
+from torch.optim.lr_scheduler import LambdaLR
 
 from typing import Protocol
-
+import numpy as np
 
 class EDMDiffuser(Protocol):
     """
@@ -87,7 +88,6 @@ class Diffuser:
         noise = noise * sigma.view(-1, 1, 1, 1)
         return clean_image + noise, sigma
 
-
 class EDM(L.LightningModule):
     def __init__(
         self,
@@ -96,6 +96,8 @@ class EDM(L.LightningModule):
         denoiser: EDMDenoiser,
         embedding: EDMEmbedding,
         use_uncertainty: bool,
+        alpha_ref: float,
+        t_ref: int,
         sigma_data: float | None = None,
         lr: float = 1e-4,
         betas: tuple[float, float] = (0.9, 0.999),
@@ -106,6 +108,8 @@ class EDM(L.LightningModule):
         self.denoiser = denoiser
         self.embedding = embedding
         self.use_uncertainty = use_uncertainty
+        self.alpha_ref = alpha_ref
+        self.t_ref = t_ref
 
         assert (
             hasattr(self.embedding, "embedding_dim")
@@ -131,10 +135,20 @@ class EDM(L.LightningModule):
             loss = self.mse(weight, denoised_image, clean_image)
 
         self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=True)
+        self.log("learning_rate", self.lr_schedulers().get_last_lr()[0], prog_bar=False, on_epoch=True, on_step=False)
         return loss
 
     def configure_optimizers(self):
-        return optim.Adam(self.parameters(), lr=self.lr, betas=self.betas)
+        optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=self.betas)
+        lr_scheduler = self.get_inverse_sqrt_lr_scheduler(optimizer, self.alpha_ref, self.t_ref)
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': lr_scheduler,
+                'interval': 'epoch',  
+                'frequency': 1,
+            }
+        }
 
     def forward(
         self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
@@ -146,3 +160,9 @@ class EDM(L.LightningModule):
     @property
     def num_classes(self) -> int | None:
         return self.embedding.num_classes
+
+    @staticmethod
+    def get_inverse_sqrt_lr_scheduler(optimizer, alpha_ref, t_ref):
+        def lr_lambda(current_step):
+            return alpha_ref / np.sqrt(max(current_step / t_ref, 1))
+        return LambdaLR(optimizer, lr_lambda)
