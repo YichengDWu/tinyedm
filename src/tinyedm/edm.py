@@ -118,6 +118,7 @@ class EDM(L.LightningModule):
             loss = self.mse(weight, denoised_image, clean_image)
 
         self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=True)
+        self.log("learning_rate", self.lr_schedulers().get_last_lr()[0], prog_bar=False, on_epoch=True, on_step=False)
         return loss
 
     def configure_optimizers(self):
