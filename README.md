@@ -10,6 +10,7 @@
 ![python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)
 
 Modular PyTorch (Lightning) implementation of implementation of EDM [Elucidating the Design Space of Diffusion-Based Generative Models](https://arxiv.org/abs/2206.00364) and [Analyzing and Improving the Training Dynamics of Diffusion Models](https://arxiv.org/abs/2312.02696).
+</div>
 
 ## Installation
 
