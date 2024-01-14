@@ -5,7 +5,7 @@ trainer:
     accelerator: gpu
     max_epochs: -1
     accumulate_grad_batches: 16
-    strategy: ddp
+    strategy: auto
 
 datamodule:
     _target_: tinyedm.datamodule.MNISTDataModule
@@ -41,6 +41,9 @@ denoiser:
 model:
     use_uncertainty: True
     lr: 0.0001
+    alpha_ref: 0.01
+    t_ref: 1000
+
 
 solver:
     _target_: tinyedm.DeterministicSolver
