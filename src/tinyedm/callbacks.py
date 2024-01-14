@@ -42,6 +42,7 @@ class GenerateCallback(Callback):
             self.class_labels = torch.randint(
                 0, pl_module.num_classes, (self.num_samples,), device=pl_module.device
             )
+            self.class_labels_str = f"{self.class_labels}"
         else:
             self.class_labels = "generated"
         self.x0 = torch.randn(
@@ -62,9 +63,9 @@ class GenerateCallback(Callback):
                 else:
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
-                grid = make_grid(xT, nrow=4, normalize=True, value_range=(-1, 1))
+                grid = make_grid(xT, nrow=8, normalize=True, value_range=(-1, 1))
                 trainer.logger.log_image(
-                    key=self.class_labels, images=[grid], step=trainer.current_epoch
+                    key=self.class_labels_str, images=[grid], step=trainer.current_epoch
                 )
 
             pl_module.train()

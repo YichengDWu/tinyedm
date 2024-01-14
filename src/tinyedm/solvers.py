@@ -53,7 +53,7 @@ class DeterministicSolver:
             x1 = x0 + (t1 - t0) * dx
 
             if i < self.num_steps - 1:
-                denoised_prime = model(x1.to, t1, class_labels).to(self.dtype)
+                denoised_prime = model(x1, t1.to(device=x0.device), class_labels).to(self.dtype)
                 dx_prime = (x1 - denoised_prime) / t1
                 x1 = x0 + (t1 - t0) * (0.5 * dx + 0.5 * dx_prime)
 
