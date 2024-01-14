@@ -72,7 +72,7 @@ wandb:
     resume: True
     reinit: False
 
-watch_watch:
+wandb_watch:
     log_freq: 500
     log: all
 
