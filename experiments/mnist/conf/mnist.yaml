@@ -69,3 +69,7 @@ wandb:
     project: MNIST
     resume: True
     reinit: False
+
+wandb_watch:
+    log: gradients
+    log_freq: 500

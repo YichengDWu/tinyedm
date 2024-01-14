@@ -66,7 +66,7 @@ def main(cfg: DictConfig) -> None:
 
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
 
-    logger.watch(model, log_freq=500, log='all')
+    logger.watch(model, **cfg.wandb_watch)
 
     ckpt_path = getattr(cfg, "ckpt_path", None)
     # Three cases: 1) resume wandb run, 2) start a new run with ckpt_path, 3) start a new run without ckpt_path
