@@ -218,7 +218,7 @@ class EncoderBlock(nn.Module):
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
-        self.gain = nn.Parameter(torch.zeros(1))
+        self.gain = nn.Parameter(torch.ones(1))
 
     def forward(self, input: Tensor, embedding: Tensor) -> Tensor:
         x = self.resample(input)
@@ -277,7 +277,7 @@ class DecoderBlock(nn.Module):
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
-        self.gain = nn.Parameter(torch.zeros(1))
+        self.gain = nn.Parameter(torch.ones(1))
 
     def forward(
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
