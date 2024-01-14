@@ -6,6 +6,7 @@ trainer:
     max_epochs: -1
     accumulate_grad_batches: 16
     strategy: auto
+    precision: 16-mixed
 
 datamodule:
     _target_: tinyedm.datamodule.MNISTDataModule

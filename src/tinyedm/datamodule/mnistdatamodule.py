@@ -7,7 +7,11 @@ from .abstract_datamodule import AbstractDataModule
 
 class MNISTDataModule(AbstractDataModule):
     def __init__(
-        self, batch_size: int, num_workers: int, image_size: int, data_dir: str = "datasets/mnist"
+        self,
+        batch_size: int,
+        num_workers: int,
+        image_size: int,
+        data_dir: str = "datasets/mnist",
     ):
         super().__init__(data_dir, batch_size, num_workers)
 
@@ -28,10 +32,8 @@ class MNISTDataModule(AbstractDataModule):
         mnist_full = MNIST(
             self.data_dir, train=True, download=False, transform=self.transform
         )
-        self.train_dataset, self.val_dataset = random_split(
-            mnist_full, [55000, 5000]
-        )
-        
+        self.train_dataset, self.val_dataset = random_split(mnist_full, [55000, 5000])
+
     @property
     def classes(self):
         return self.train_dataset.classes

@@ -8,11 +8,13 @@ from torch.optim.lr_scheduler import LambdaLR
 from typing import Protocol
 import numpy as np
 
+
 class EDMDiffuser(Protocol):
     """
-    A diffuser is defined as a function that takes in a clean image and outputs a noisy image and 
+    A diffuser is defined as a function that takes in a clean image and outputs a noisy image and
     the noise level used to generate the noisy image.
     """
+
     @torch.no_grad()
     def __call__(self, clean_image: Tensor) -> tuple[Tensor, Tensor]:
         ...
@@ -20,9 +22,10 @@ class EDMDiffuser(Protocol):
 
 class EDMEmbedding(Protocol):
     """
-    An embedding that takes in a noise level and an **optional** class label (guidance) and outputs an embedding 
+    An embedding that takes in a noise level and an **optional** class label (guidance) and outputs an embedding
     that is then fed into the denoiser.
     """
+
     def __call__(self, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
         ...
 
@@ -38,11 +41,10 @@ class EDMEmbedding(Protocol):
 class EDMDenoiser(Protocol):
     """
     A denoiser that takes in a noisy image, the noise level, and an embedding and outputs a denoised image.
-    
+
     """
-    def __call__(
-        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor
-    ) -> Tensor:
+
+    def __call__(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor) -> Tensor:
         ...
 
     @property
@@ -52,10 +54,11 @@ class EDMDenoiser(Protocol):
 
 class EDMSolver(Protocol):
     """
-    A solver that takes in a model, a Gaussian noise sampled from the standard normal distribution, 
+    A solver that takes in a model, a Gaussian noise sampled from the standard normal distribution,
     and an optional class label. It iteratively solves the probability flow ODE and outputs the final
     image.
     """
+
     def solve(self, model: nn.Module, x0: Tensor, class_label: Tensor | None = None):
         ...
 
@@ -75,7 +78,7 @@ class Diffuser:
 
     """
 
-    def __init__(self, P_mean, P_std: float) -> None:
+    def __init__(self, P_mean: float, P_std: float) -> None:
         self.P_mean = P_mean
         self.P_std = P_std
 
@@ -87,6 +90,7 @@ class Diffuser:
         noise = torch.randn_like(clean_image)
         noise = noise * sigma.view(-1, 1, 1, 1)
         return clean_image + noise, sigma
+
 
 class EDM(L.LightningModule):
     def __init__(
@@ -128,24 +132,35 @@ class EDM(L.LightningModule):
         weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
         if self.u is not None:
             uncertainty = self.u(embedding.detach()).flatten()
-            loss = self.mse(weight / uncertainty.exp(), denoised_image, clean_image) + uncertainty.mean()
+            loss = (
+                self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
+                + uncertainty.mean()
+            )
         else:
             loss = self.mse(weight, denoised_image, clean_image)
 
         self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=True)
-        self.log("learning_rate", self.lr_schedulers().get_last_lr()[0], prog_bar=False, on_epoch=True, on_step=False)
+        self.log(
+            "learning_rate",
+            self.lr_schedulers().get_last_lr()[0],
+            prog_bar=False,
+            on_epoch=True,
+            on_step=False,
+        )
         return loss
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=self.betas)
-        lr_scheduler = self.get_inverse_sqrt_lr_scheduler(optimizer, self.lr, self.warmup_steps)
+        lr_scheduler = self.get_inverse_sqrt_lr_scheduler(
+            optimizer, self.lr, self.warmup_steps
+        )
         return {
-            'optimizer': optimizer,
-            'lr_scheduler': {
-                'scheduler': lr_scheduler,
-                'interval': 'epoch',  
-                'frequency': 1,
-            }
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+            },
         }
 
     def forward(
@@ -163,4 +178,5 @@ class EDM(L.LightningModule):
     def get_inverse_sqrt_lr_scheduler(optimizer, lr, warmup_steps):
         def lr_lambda(current_step):
             return 1 / np.sqrt(max(current_step / warmup_steps, 1))
+
         return LambdaLR(optimizer, lr_lambda)

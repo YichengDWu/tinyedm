@@ -141,9 +141,7 @@ class Embedding(nn.Module):
 
         if class_labels is not None:
             if self.class_embed is None:
-                raise ValueError(
-                    "class_labels is not None, but num_classes is None. "
-                )
+                raise ValueError("class_labels is not None, but num_classes is None. ")
             class_embedding = self.class_embed(class_labels)
             embedding = mp_add(embedding, class_embedding, self.add_factor)
 
@@ -539,9 +537,7 @@ class Denoiser(nn.Module):
     def sigma_data(self) -> float:
         return self._sigma_data
 
-    def forward(
-        self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor
-    ):
+    def forward(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor):
         if sigma.ndim == 0:
             sigma = sigma * torch.ones(
                 noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
@@ -564,9 +560,7 @@ class Denoiser(nn.Module):
             x = block(x, embedding)
             skips.append(x)
 
-        for i, (block, has_skip) in enumerate(
-            zip(self.decoder_blocks, self.skip_connections)
-        ):
+        for block, has_skip in zip(self.decoder_blocks, self.skip_connections):
             if has_skip:
                 x = block(x, embedding, skips.pop())
             else:
