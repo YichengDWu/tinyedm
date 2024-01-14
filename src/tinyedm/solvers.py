@@ -48,7 +48,7 @@ class DeterministicSolver:
         x1 = x0 * self.t_steps[0]
         for i, (t0, t1) in enumerate(zip(self.t_steps[:-1], self.t_steps[1:])):
             x0 = x1
-            denoised = model(x0, t0, class_labels).to(self.dtype)
+            denoised = model(x0, t0.to(device=x0.device), class_labels).to(self.dtype)
             dx = (x0 - denoised) / t0
             x1 = x0 + (t1 - t0) * dx
 

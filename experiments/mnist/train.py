@@ -29,8 +29,7 @@ def main(cfg: DictConfig) -> None:
     diffuser = hydra.utils.instantiate(cfg.diffuser)
     embedding = hydra.utils.instantiate(cfg.embedding)
     denoiser = hydra.utils.instantiate(cfg.denoiser)
-    print(embedding)
-    print(embedding.embedding_dim)
+
     model = EDM(
         denoiser=denoiser,
         diffuser=diffuser,
