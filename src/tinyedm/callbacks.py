@@ -25,6 +25,7 @@ class GenerateCallback(Callback):
         enable_ema: True,
         num_samples: int = 8,
         img_shape: tuple[int, int, int] = (3, 32, 32),
+        value_range: tuple[float, float] = (0, 1),
         every_n_epochs=5,
     ):
         super().__init__()
@@ -33,6 +34,7 @@ class GenerateCallback(Callback):
         self.num_samples = num_samples
         self.img_shape = img_shape
         self.every_n_epochs = every_n_epochs
+        self.value_range = value_range
 
     @rank_zero_only
     def on_train_start(self, trainer, pl_module):
@@ -63,7 +65,7 @@ class GenerateCallback(Callback):
                 else:
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
-                grid = make_grid(xT, nrow=8, normalize=True, value_range=(-1, 1))
+                grid = make_grid(xT, nrow=8, normalize=True, value_range=self.value_range)
                 trainer.logger.log_image(
                     key=self.class_labels_str, images=[grid], step=trainer.current_epoch
                 )

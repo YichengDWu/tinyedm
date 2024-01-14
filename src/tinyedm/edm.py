@@ -84,7 +84,7 @@ class Diffuser:
 
     @torch.no_grad()
     def __call__(self, clean_image: Tensor) -> tuple[Tensor, Tensor]:
-        epsilon = torch.randn(clean_image.shape[0], device=clean_image.device)
+        epsilon = torch.randn(clean_image.shape[0], device=clean_image.device, dtype=clean_image.dtype)
         sigma = (self.P_mean + epsilon * self.P_std).exp()
 
         noise = torch.randn_like(clean_image)
@@ -177,6 +177,6 @@ class EDM(L.LightningModule):
     @staticmethod
     def get_inverse_sqrt_lr_scheduler(optimizer, lr, warmup_steps):
         def lr_lambda(current_step):
-            return 1 / np.sqrt(max(current_step / warmup_steps, 1))
+            return 1 / np.sqrt(max(current_step / warmup_steps, 1), dtype=np.float32)
 
         return LambdaLR(optimizer, lr_lambda)

@@ -8,7 +8,7 @@ import numpy as np
 def normalize(x, eps=1e-4):
     dim = list(range(1, x.ndim))
     n = torch.linalg.vector_norm(x, dim=dim, keepdim=True)
-    alpha = np.sqrt(n.numel() / x.numel())
+    alpha = np.sqrt(n.numel() / x.numel(), dtype=np.float32)
     return x / torch.add(eps, n, alpha=alpha)
 
 
@@ -26,7 +26,7 @@ class Conv2d(nn.Module):
             with torch.no_grad():
                 self.weight.copy_(normalize(self.weight))
         fan_in = self.weight[0].numel()
-        w = normalize(self.weight) / np.sqrt(fan_in)
+        w = normalize(self.weight) / np.sqrt(fan_in, dtype=np.float32)
         x = F.conv2d(x, w, padding="same")
         return x
 
@@ -49,7 +49,7 @@ class Linear(nn.Module):
             with torch.no_grad():
                 self.weight.copy_(normalize(self.weight))
         fan_in = self.weight[0].numel()
-        w = normalize(self.weight) / np.sqrt(fan_in)
+        w = normalize(self.weight) / np.sqrt(fan_in, dtype=np.float32)
         x = F.linear(x, w)
         return x
 
@@ -74,14 +74,14 @@ def mp_silu(x: Tensor) -> Tensor:
 
 
 def mp_add(a: Tensor, b: Tensor, t: float = 0.3) -> Tensor:
-    scale = np.sqrt(t**2 + (1 - t) ** 2)
+    scale = np.sqrt(t**2 + (1 - t) ** 2, dtype=np.float32)
     return ((1 - t) * a + t * b) / scale
 
 
 def mp_cat(a: Tensor, b: Tensor, t: float = 0.5) -> Tensor:
     N_a, N_b = a[0].numel(), b[0].numel()
-    scale = np.sqrt((N_a + N_b) / (t**2 + (1 - t) ** 2))
-    out = torch.cat([(1 - t) / np.sqrt(N_a) * a, t / np.sqrt(N_b) * b], dim=1)
+    scale = np.sqrt((N_a + N_b) / (t**2 + (1 - t) ** 2), dtype=np.float32)
+    out = torch.cat([(1 - t) / np.sqrt(N_a, dtype=np.float32) * a, t / np.sqrt(N_b, dtype=np.float32) * b], dim=1)
     return out * scale
 
 
@@ -93,7 +93,7 @@ class ClassEmbedding(nn.Module):
 
     def forward(self, class_labels: Tensor):
         class_emb = F.one_hot(class_labels, self.num_embeddings)
-        return self.linear(class_emb * np.sqrt(self.num_embeddings))
+        return self.linear(class_emb * np.sqrt(self.num_embeddings, dtype=np.float32))
 
 
 class FourierEmbedding(nn.Module):
@@ -104,7 +104,7 @@ class FourierEmbedding(nn.Module):
 
     def forward(self, x):
         x = torch.outer(x.flatten(), self.freqs) + self.phases
-        x = torch.cos(2 * torch.pi * x) * np.sqrt(2)
+        x = torch.cos(2 * torch.pi * x) * np.sqrt(2, dtype=np.float32)
         return x
 
 
