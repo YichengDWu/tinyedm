@@ -77,3 +77,4 @@ wandb_watch:
     log_freq: 500
     log: all
 
+compile: False

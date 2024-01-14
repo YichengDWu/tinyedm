@@ -30,6 +30,10 @@ def main(cfg: DictConfig) -> None:
     embedding = hydra.utils.instantiate(cfg.embedding)
     denoiser = hydra.utils.instantiate(cfg.denoiser)
 
+    if cfg.compile:
+        denoiser = torch.compile(denoiser, fullgraph=True)
+        embedding = torch.compile(embedding, fullgraph=True)
+
     model = EDM(
         denoiser=denoiser,
         diffuser=diffuser,
@@ -37,6 +41,7 @@ def main(cfg: DictConfig) -> None:
         **cfg.model,
     )
     print(model)
+
     solver = hydra.utils.instantiate(cfg.solver, dtype=torch.float32)
 
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
@@ -45,7 +50,10 @@ def main(cfg: DictConfig) -> None:
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
     logckptpath_callback = LogBestCkptCallback()
     generate_callback = GenerateCallback(
-        solver=solver, enable_ema=cfg.ema.enable, **cfg.generate_callback
+        solver=solver,
+        enable_ema=cfg.ema.enable,
+        value_range=(0, 1),
+        **cfg.generate_callback,
     )
     upload_callback = UploadCheckpointCallback()
     callbacks = [
