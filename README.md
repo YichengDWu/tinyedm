@@ -13,6 +13,8 @@
 This a an unofficial PyTorch (Lightning) implementation of EDM [Elucidating the Design Space of Diffusion-Based Generative Models](https://arxiv.org/abs/2206.00364) and [Analyzing and Improving the Training Dynamics of Diffusion Models](https://arxiv.org/abs/2312.02696).
 </div>
 
+- [x] Config G.
+- [ ] Post-hoc EMA.
 ## Installation
 
 ```
