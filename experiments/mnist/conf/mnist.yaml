@@ -75,3 +75,4 @@ wandb:
 watch_watch:
     log_freq: 500
     log: all
+

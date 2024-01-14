@@ -3,21 +3,11 @@ import torch
 
 class DeterministicSolver:
     """
-    A deterministic solver for diffusion models.
+    A deterministic solver for diffusion models. Algorithm 1 in [1] with `sigma(t)=t` and
+    `s(t)=1`.
 
-    Args:
-        num_steps: The number of steps to take.
-        sigma_min: The minimum value of sigma.
-        sigma_max: The maximum value of sigma.
-        rho: The value of rho.
-        dtype: The dtype of the solver.
-
-    Methods:
-        solve: Solve the diffusion model.
-            Args:
-                model: The diffusion model.
-                x0: The initial value. Assumed to be **standard normal**.
-
+    References:
+        [1] Karras T, Aittala M, Aila T, et al. Elucidating the design space of diffusion-based generative models[J]. Advances in Neural Information Processing Systems, 2022, 35: 26565-26577.
     """
 
     def __init__(
@@ -53,7 +43,9 @@ class DeterministicSolver:
             x1 = x0 + (t1 - t0) * dx
 
             if i < self.num_steps - 1:
-                denoised_prime = model(x1, t1.to(device=x0.device), class_labels).to(self.dtype)
+                denoised_prime = model(x1, t1.to(device=x0.device), class_labels).to(
+                    self.dtype
+                )
                 dx_prime = (x1 - denoised_prime) / t1
                 x1 = x0 + (t1 - t0) * (0.5 * dx + 0.5 * dx_prime)
 
