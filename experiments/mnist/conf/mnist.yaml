@@ -71,3 +71,7 @@ wandb:
     project: MNIST
     resume: True
     reinit: False
+
+watch:
+    log_freq: 500
+    log: all
