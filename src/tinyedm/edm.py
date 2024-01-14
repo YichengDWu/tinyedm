@@ -143,7 +143,7 @@ class EDM(L.LightningModule):
         return self.embedding.num_classes
 
     @staticmethod
-    def get_inverse_sqrt_lr_scheduler(optimizer, alpha_ref, t_ref):
+    def get_inverse_sqrt_lr_scheduler(optimizer, lr, warmup_steps):
         def lr_lambda(current_step):
-            return alpha_ref / np.sqrt(max(current_step / t_ref, 1))
+            return 1 / np.sqrt(max(current_step / warmup_steps, 1))
         return LambdaLR(optimizer, lr_lambda)
