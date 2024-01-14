@@ -177,6 +177,6 @@ class EDM(L.LightningModule):
     @staticmethod
     def get_inverse_sqrt_lr_scheduler(optimizer, lr, warmup_steps):
         def lr_lambda(current_step):
-            return 1 / np.sqrt(max(current_step / warmup_steps, 1))
+            return 1 / np.sqrt(max(current_step / warmup_steps, 1), dtype=np.float32)
 
         return LambdaLR(optimizer, lr_lambda)
