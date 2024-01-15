@@ -20,7 +20,7 @@ class MNISTDataModule(AbstractDataModule):
                 v2.Resize(image_size),
                 v2.ToImage(),
                 v2.ToDtype(torch.float32, scale=True),
-                v2.Normalize((0.1307,), (0.3081,)),
+                v2.Normalize((0.1307,), (0.3081/0.5,)),
             ]
         )
 
