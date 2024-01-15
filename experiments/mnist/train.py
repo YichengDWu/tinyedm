@@ -45,6 +45,7 @@ def main(cfg: DictConfig) -> None:
     solver = hydra.utils.instantiate(cfg.solver, dtype=torch.float32)
 
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
+    wandb.run.log_code(".")
     logger = WandbLogger()
 
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
