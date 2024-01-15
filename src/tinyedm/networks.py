@@ -513,7 +513,7 @@ class Denoiser(nn.Module):
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
-        self.gain = nn.Parameter(torch.zeros(1))
+        self.gain_out = nn.Parameter(torch.zeros(1))
 
         self.encoder_blocks = build_encoder_blocks(
             encoder_block_types,
@@ -573,7 +573,7 @@ class Denoiser(nn.Module):
                 x = block(x, embedding)
 
         # Output block
-        denoised_image = self.conv_out(x) * self.gain
+        denoised_image = self.conv_out(x) * self.gain_out
         denoised_image = denoised_image * c_out + noisy_image * c_skip
 
         return denoised_image
