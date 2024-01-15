@@ -40,9 +40,8 @@ class GenerateCallback(Callback):
     def on_train_start(self, trainer, pl_module):
         use_labels = pl_module.num_classes is not None
         if use_labels:
-            # randomly sample labels
-            self.class_labels = torch.randint(
-                0, pl_module.num_classes, (self.num_samples,), device=pl_module.device
+            self.class_labels = torch.range(
+                0, pl_module.num_classes - 1, device=pl_module.device, dtype=torch.long
             )
             self.class_labels_str = f"{self.class_labels}"
         else:
@@ -66,7 +65,7 @@ class GenerateCallback(Callback):
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
                 grid = make_grid(
-                    xT, nrow=8, normalize=True, value_range=self.value_range
+                    xT, nrow=self.num_samples, normalize=True, value_range=self.value_range
                 )
                 trainer.logger.log_image(
                     key=self.class_labels_str, images=[grid], step=trainer.current_epoch
