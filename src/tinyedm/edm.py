@@ -152,7 +152,7 @@ class EDM(L.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=self.betas)
+        optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=self.betas, fused=True)
         lr_scheduler = self.get_inverse_sqrt_lr_scheduler(
             optimizer, self.lr, self.warmup_steps
         )
