@@ -40,7 +40,7 @@ denoiser:
 
 
 model:
-    use_uncertainty: True
+    use_uncertainty: False
     lr: 0.0001
     warmup_steps: 1000
 
