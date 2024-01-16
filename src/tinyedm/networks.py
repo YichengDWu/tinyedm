@@ -90,7 +90,17 @@ def mp_cat(a: Tensor, b: Tensor, t: float = 0.5) -> Tensor:
     )
     return out * scale
 
-
+class UncertaintyNet(nn.Module):
+    def __init__(self, in_features: int, hidden_features: int):
+        super().__init__()
+        self.linear1 = Linear(in_features, hidden_features)
+        self.linear2 = Linear(hidden_features, 1)
+        
+    def forward(self, x: Tensor):
+        x = mp_silu(self.linear1(x))
+        x = self.linear2(x)
+        return x
+        
 class ClassEmbedding(nn.Module):
     def __init__(self, num_embeddings, embedding_dim):
         super().__init__()

@@ -2,7 +2,7 @@ import lightning as L
 import torch
 from torch import Tensor, nn, optim
 from .metric import WeightedMeanSquaredError
-from .networks import Linear
+from .networks import Linear, UncertaintyNet
 from torch.optim.lr_scheduler import LambdaLR
 
 from typing import Protocol
@@ -119,7 +119,7 @@ class EDM(L.LightningModule):
             hasattr(self.embedding, "embedding_dim")
             and self.embedding.embedding_dim is not None
         ), "Embedding must have an embedding_dim attribute."
-        self.u = Linear(embedding.embedding_dim, 1) if use_uncertainty else None
+        self.u = UncertaintyNet(embedding.embedding_dim, embedding.embedding_dim) if use_uncertainty else None
         self.sigma_data = sigma_data if sigma_data is not None else denoiser.sigma_data
         self.lr = lr
         self.betas = betas
