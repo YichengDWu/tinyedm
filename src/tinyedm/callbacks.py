@@ -39,7 +39,7 @@ class GenerateCallback(Callback):
     @rank_zero_only
     def on_train_start(self, trainer, pl_module):
         self.class_labels = torch.arange(
-            0, pl_module.num_classes - 1, device=pl_module.device, dtype=torch.long
+            0, pl_module.num_classes, device=pl_module.device, dtype=torch.long
         )
         self.x0 = torch.randn(
             self.num_samples * pl_module.num_classes, *self.img_shape, device=pl_module.device
