@@ -61,7 +61,7 @@ class GenerateCallback(Callback):
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
                 grid = make_grid(
-                    xT, nrow=self.num_samples, normalize=True, value_range=self.value_range
+                    xT, nrow=pl_module.num_classes, normalize=True, value_range=self.value_range
                 )
                 trainer.logger.log_image(
                     key="Generated", images=[grid], step=trainer.current_epoch
