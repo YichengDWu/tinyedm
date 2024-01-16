@@ -23,7 +23,7 @@ class GenerateCallback(Callback):
         self,
         solver: EDMSolver,
         enable_ema: True,
-        num_samples: int = 8,
+        num_samples: int = 4,
         img_shape: tuple[int, int, int] = (3, 32, 32),
         value_range: tuple[float, float] = (0, 1),
         every_n_epochs=5,
@@ -38,17 +38,13 @@ class GenerateCallback(Callback):
 
     @rank_zero_only
     def on_train_start(self, trainer, pl_module):
-        use_labels = pl_module.num_classes is not None
-        if use_labels:
-            self.class_labels = torch.range(
-                0, pl_module.num_classes - 1, device=pl_module.device, dtype=torch.long
-            )
-            self.class_labels_str = f"{self.class_labels}"
-        else:
-            self.class_labels = "generated"
-        self.x0 = torch.randn(
-            self.num_samples, *self.img_shape, device=pl_module.device
+        self.class_labels = torch.arange(
+            0, pl_module.num_classes - 1, device=pl_module.device, dtype=torch.long
         )
+        self.x0 = torch.randn(
+            self.num_samples * pl_module.num_classes, *self.img_shape, device=pl_module.device
+        )
+        self.class_labels = self.class_labels.repeat(pl_module.num_classes)
 
     @rank_zero_only
     def on_train_epoch_end(self, trainer, pl_module):
@@ -68,7 +64,7 @@ class GenerateCallback(Callback):
                     xT, nrow=self.num_samples, normalize=True, value_range=self.value_range
                 )
                 trainer.logger.log_image(
-                    key=self.class_labels_str, images=[grid], step=trainer.current_epoch
+                    key="Generated", images=[grid], step=trainer.current_epoch
                 )
 
             pl_module.train()
