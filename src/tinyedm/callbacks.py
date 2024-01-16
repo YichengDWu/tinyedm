@@ -44,7 +44,7 @@ class GenerateCallback(Callback):
         self.x0 = torch.randn(
             self.num_samples * pl_module.num_classes, *self.img_shape, device=pl_module.device
         )
-        self.class_labels = self.class_labels.repeat(pl_module.num_classes)
+        self.class_labels = self.class_labels.repeat(self.num_samples)
 
     @rank_zero_only
     def on_train_epoch_end(self, trainer, pl_module):
