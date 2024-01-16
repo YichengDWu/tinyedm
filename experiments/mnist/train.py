@@ -66,7 +66,7 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.ema.enable:
         ema_callback = EMA(
-            decay=cfg.ema.decay,
+            ema_length=cfg.ema.ema_length,
             validate_original_weights=cfg.ema.validate_original_weights,
             cpu_offload=cfg.ema.cpu_offload,
             every_n_steps=cfg.ema.every_n_steps,
