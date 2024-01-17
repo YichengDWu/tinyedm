@@ -67,6 +67,10 @@ generate_callback:
 
 ema:
     enable: False
+    ema_length: 0.1
+    validate_original_weights: False
+    cpu_offload: False
+    every_n_steps: 2
 
 wandb:
     project: MNIST
