@@ -141,7 +141,7 @@ class EDM(L.LightningModule):
         else:
             loss = self.mse(weight, denoised_image, clean_image)
 
-        self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=True)
+        self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
         self.log(
             "learning_rate",
             self.lr_schedulers().get_last_lr()[0],
