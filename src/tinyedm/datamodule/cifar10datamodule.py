@@ -1,6 +1,6 @@
-from torchvision import transforms
 from torchvision.datasets import CIFAR10
-
+from torchvision.transforms import v2
+import torch
 from .abstract_datamodule import AbstractDataModule
 
 
@@ -8,19 +8,19 @@ class CIFAR10DataModule(AbstractDataModule):
     def __init__(
         self,
         data_dir: str = "datasets/cifar",
-        img_size: int = 32,
+        image_size: int = 32,
         batch_size: int = 16,
         num_workers: int = 16,
     ):
         super().__init__(data_dir, batch_size, num_workers)
 
-        self.img_size = img_size
-        self.transform = transforms.Compose(
+        self.img_size = image_size
+        self.transform = v2.Compose(
             [
-                transforms.Resize(self.img_size),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                v2.Resize(image_size),
+                v2.ToImage(),
+                v2.ToDtype(torch.float32, scale=True),
+                v2.Normalize((0.49139968, 0.48215841, 0.44653091), (0.24703223*2, 0.24348513*2, 0.26158784*2)),
             ]
         )
 
