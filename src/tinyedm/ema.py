@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# https://github.com/amorehead/NeMo/blob/main/nemo/collections/common/callbacks/ema.py
+
+# Taken from https://github.com/amorehead/NeMo/blob/main/nemo/collections/common/callbacks/ema.py with minor modifications.
 import contextlib
 import copy
 import os
@@ -23,6 +24,13 @@ import torch
 from lightning import Callback
 from lightning.pytorch.utilities import rank_zero_info
 from lightning.pytorch.utilities.exceptions import MisconfigurationException
+import numpy as np
+
+
+def sigma_rel_to_gamma(sigma_rel):
+    t = sigma_rel**-2
+    gamma = np.roots([1, 7, 16 - t, 12 - t]).real.max()
+    return gamma
 
 
 class EMA(Callback):
@@ -33,7 +41,7 @@ class EMA(Callback):
     When saving, we save an additional set of parameters with the prefix `ema`.
 
     Args:
-        decay: The exponential decay used when calculating the moving average. Has to be between 0-1.
+        ema_length:  The “width” of its peak relative to training time.
         validate_original_weights: Validate the original weights, as apposed to the EMA weights.
         every_n_steps: Apply EMA every N steps.
         cpu_offload: Offload weights to CPU.
@@ -41,14 +49,17 @@ class EMA(Callback):
 
     def __init__(
         self,
-        decay: float,
+        ema_length: float,
         validate_original_weights: bool = False,
         every_n_steps: int = 1,
         cpu_offload: bool = False,
     ):
-        if not (0 <= decay <= 1):
-            raise MisconfigurationException("EMA decay value must be between 0 and 1")
-        self.decay = decay
+        if not (0 <= ema_length <= 0.2886):
+            raise MisconfigurationException(
+                "EMA length value must be between 0 and 0.2886"
+            )
+        self.ema_length = ema_length
+        self.gamma = sigma_rel_to_gamma(ema_length)
         self.validate_original_weights = validate_original_weights
         self.every_n_steps = every_n_steps
         self.cpu_offload = cpu_offload
@@ -67,7 +78,7 @@ class EMA(Callback):
             EMAOptimizer(
                 optim,
                 device=device,
-                decay=self.decay,
+                gamma=self.gamma,
                 every_n_steps=self.every_n_steps,
                 current_step=trainer.global_step,
             )
@@ -312,12 +323,12 @@ class EMAOptimizer(torch.optim.Optimizer):
         self,
         optimizer: torch.optim.Optimizer,
         device: torch.device,
-        decay: float = 0.9999,
+        gamma: float,
         every_n_steps: int = 1,
         current_step: int = 0,
     ):
         self.optimizer = optimizer
-        self.decay = decay
+        self.gamma = gamma
         self.device = device
         self.current_step = current_step
         self.every_n_steps = every_n_steps
@@ -383,6 +394,7 @@ class EMAOptimizer(torch.optim.Optimizer):
     @torch.no_grad()
     def update(self):
         """Updates EMA parameters."""
+        decay = (1 - 1 / (self.current_step+1)) ** (self.gamma + 1)
         if self.stream is not None:
             self.stream.wait_stream(torch.cuda.current_stream())
 
@@ -393,7 +405,7 @@ class EMAOptimizer(torch.optim.Optimizer):
             )
 
             if self.device.type == "cuda":
-                ema_update(self.ema_params, current_model_state, self.decay)
+                ema_update(self.ema_params, current_model_state, decay)
 
         if self.device.type == "cpu":
             self.thread = threading.Thread(
@@ -401,7 +413,7 @@ class EMAOptimizer(torch.optim.Optimizer):
                 args=(
                     self.ema_params,
                     current_model_state,
-                    self.decay,
+                    decay,
                     self.stream,
                 ),
             )
@@ -484,7 +496,7 @@ class EMAOptimizer(torch.optim.Optimizer):
             "opt": self.optimizer.state_dict(),
             "ema": ema_params,
             "current_step": self.current_step,
-            "decay": self.decay,
+            "gamma": self.gamma,
             "every_n_steps": self.every_n_steps,
         }
         return state_dict
@@ -502,7 +514,7 @@ class EMAOptimizer(torch.optim.Optimizer):
             param.to(self.device) for param in copy.deepcopy(state_dict["ema"])
         )
         self.current_step = state_dict["current_step"]
-        self.decay = state_dict["decay"]
+        self.gamma = state_dict["gamma"]
         self.every_n_steps = state_dict["every_n_steps"]
         self.rebuild_ema_params = False
 
