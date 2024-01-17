@@ -13,7 +13,7 @@ datamodule:
     batch_size: 128
     num_workers: 16
     image_size: 32
-    data_dir: datasets/mnist
+    data_dir: datasets/cifar10
 
 diffuser:
     _target_: tinyedm.Diffuser
