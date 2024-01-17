@@ -25,6 +25,7 @@ cd tinyedm && pip install .
 ## Train
 
 ```python
-python experiments/mnist/train.py
+python experiments/train.py --config-name="mnist"
+python experiments/train.py --config-name="cifar10"
 ```
 
