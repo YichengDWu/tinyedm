@@ -22,10 +22,12 @@ class GenerateCallback(Callback):
     def __init__(
         self,
         solver: EDMSolver,
-        enable_ema: True,
-        num_samples: int = 4,
-        img_shape: tuple[int, int, int] = (3, 32, 32),
+        enable_ema: bool,
+        img_shape: tuple[int, int, int],
+        mean: tuple,
+        std: tuple,
         value_range: tuple[float, float] = (0, 1),
+        num_samples: int = 8,
         every_n_epochs=5,
     ):
         super().__init__()
@@ -35,6 +37,8 @@ class GenerateCallback(Callback):
         self.img_shape = img_shape
         self.every_n_epochs = every_n_epochs
         self.value_range = value_range
+        self.mean = mean
+        self.std = std
 
     @rank_zero_only
     def on_train_start(self, trainer, pl_module):
@@ -45,6 +49,9 @@ class GenerateCallback(Callback):
             self.num_samples * pl_module.num_classes, *self.img_shape, device=pl_module.device
         )
         self.class_labels = self.class_labels.repeat(self.num_samples)
+        
+        self.std = torch.tensor(self.std, device=pl_module.device).view(1, -1, 1, 1)
+        self.mean = torch.tensor(self.mean, device=pl_module.device).view(1, -1, 1, 1)
 
     @rank_zero_only
     def on_train_epoch_end(self, trainer, pl_module):
@@ -60,8 +67,11 @@ class GenerateCallback(Callback):
                 else:
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
+                # unnormalize 
+                images = xT * self.std * 2 + self.mean
+                images = torch.clamp(images, *self.value_range)
                 grid = make_grid(
-                    xT, nrow=pl_module.num_classes, normalize=True, value_range=self.value_range
+                    images, nrow=pl_module.num_classes, normalize=False
                 )
                 trainer.logger.log_image(
                     key="Generated", images=[grid], step=trainer.current_epoch

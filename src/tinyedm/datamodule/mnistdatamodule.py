@@ -15,12 +15,14 @@ class MNISTDataModule(AbstractDataModule):
     ):
         super().__init__(data_dir, batch_size, num_workers)
 
+        self.mean = (0.1307,)
+        self.std = (0.3081,)
         self.transform = v2.Compose(
             [
                 v2.Resize(image_size),
                 v2.ToImage(),
                 v2.ToDtype(torch.float32, scale=True),
-                v2.Normalize((0.1307,), (0.3081/0.5,)),
+                v2.Normalize(self.mean, map(lambda x: 2*x, self.std)), # normalize to have std of 0.5
             ]
         )
 

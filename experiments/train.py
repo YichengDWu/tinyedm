@@ -53,6 +53,8 @@ def main(cfg: DictConfig) -> None:
     generate_callback = GenerateCallback(
         solver=solver,
         enable_ema=cfg.ema.enable,
+        std=datamodule.std,
+        mean=datamodule.mean,
         value_range=(0, 1),
         **cfg.generate_callback,
     )
