@@ -201,5 +201,5 @@ class EDM(L.LightningModule):
         return SequentialLR(
             optimizer,
             schedulers=[rampup_scheduler, constant_scheduler, decay_scheduler],
-            milestones=[rampup_steps, steady_steps],
+            milestones=[rampup_steps, steady_steps+rampup_steps],
         )
