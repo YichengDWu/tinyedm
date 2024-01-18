@@ -199,6 +199,7 @@ class EDM(L.LightningModule):
         decay_scheduler = LambdaLR(optimizer, lr_lambda)
 
         return SequentialLR(
-            [rampup_scheduler, constant_scheduler, decay_scheduler],
+            optimizer,
+            schedulers=[rampup_scheduler, constant_scheduler, decay_scheduler],
             milestones=[rampup_steps, steady_steps],
         )
