@@ -46,10 +46,12 @@ class GenerateCallback(Callback):
             0, pl_module.num_classes, device=pl_module.device, dtype=torch.long
         )
         self.x0 = torch.randn(
-            self.num_samples * pl_module.num_classes, *self.img_shape, device=pl_module.device
+            self.num_samples * pl_module.num_classes,
+            *self.img_shape,
+            device=pl_module.device,
         )
         self.class_labels = self.class_labels.repeat(self.num_samples)
-        
+
         self.std = torch.tensor(self.std, device=pl_module.device).view(1, -1, 1, 1)
         self.mean = torch.tensor(self.mean, device=pl_module.device).view(1, -1, 1, 1)
 
@@ -67,12 +69,10 @@ class GenerateCallback(Callback):
                 else:
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
-                # unnormalize 
+                # unnormalize
                 images = xT * self.std * 2 + self.mean
                 images = torch.clamp(images, *self.value_range)
-                grid = make_grid(
-                    images, nrow=pl_module.num_classes, normalize=False
-                )
+                grid = make_grid(images, nrow=pl_module.num_classes, normalize=False)
                 trainer.logger.log_image(
                     key="Generated", images=[grid], step=trainer.current_epoch
                 )
