@@ -3,7 +3,7 @@ import torch
 from torch import Tensor, nn, optim
 from .metric import WeightedMeanSquaredError
 from .networks import Linear, UncertaintyNet
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim.lr_scheduler import LambdaLR, LinearLR, ConstantLR, SequentialLR
 
 from typing import Protocol
 import numpy as np
@@ -102,7 +102,8 @@ class EDM(L.LightningModule):
         denoiser: EDMDenoiser,
         embedding: EDMEmbedding,
         use_uncertainty: bool,
-        warmup_steps: int,
+        steady_steps: int,
+        rampup_steps: int,
         sigma_data: float | None = None,
         lr: float = 1e-4,
         betas: tuple[float, float] = (0.9, 0.999),
@@ -113,13 +114,18 @@ class EDM(L.LightningModule):
         self.denoiser = denoiser
         self.embedding = embedding
         self.use_uncertainty = use_uncertainty
-        self.warmup_steps = warmup_steps
+        self.steady_steps = steady_steps
+        self.rampup_steps = rampup_steps
 
         assert (
             hasattr(self.embedding, "embedding_dim")
             and self.embedding.embedding_dim is not None
         ), "Embedding must have an embedding_dim attribute."
-        self.u = UncertaintyNet(embedding.embedding_dim, embedding.embedding_dim) if use_uncertainty else None
+        self.u = (
+            UncertaintyNet(embedding.embedding_dim, embedding.embedding_dim)
+            if use_uncertainty
+            else None
+        )
         self.sigma_data = sigma_data if sigma_data is not None else denoiser.sigma_data
         self.lr = lr
         self.betas = betas
@@ -152,10 +158,14 @@ class EDM(L.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=self.betas, fused=True)
-        lr_scheduler = self.get_inverse_sqrt_lr_scheduler(
-            optimizer, self.lr, self.warmup_steps
+        optimizer = optim.Adam(
+            self.parameters(), lr=self.lr, betas=self.betas, fused=True
         )
+
+        lr_scheduler = self.get_lr_scheduler(
+            optimizer, self.rampup_steps, self.steady_steps
+        )
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -177,8 +187,18 @@ class EDM(L.LightningModule):
         return self.embedding.num_classes
 
     @staticmethod
-    def get_inverse_sqrt_lr_scheduler(optimizer, lr, warmup_steps):
-        def lr_lambda(current_step):
-            return 1 / np.sqrt(max(current_step / warmup_steps, 1), dtype=np.float32)
+    def get_lr_scheduler(optimizer, rampup_steps, steady_steps):
+        rampup_scheduler = LinearLR(
+            optimizer, start_factor=1e-8, total_iters=rampup_steps
+        )
+        constant_scheduler = ConstantLR(optimizer, factor=1.0, total_iters=steady_steps)
 
-        return LambdaLR(optimizer, lr_lambda)
+        def lr_lambda(current_step):
+            return 1 / np.sqrt(1 + current_step / steady_steps, dtype=np.float32)
+
+        decay_scheduler = LambdaLR(optimizer, lr_lambda)
+
+        return SequentialLR(
+            [rampup_scheduler, constant_scheduler, decay_scheduler],
+            milestones=[rampup_steps, steady_steps],
+        )

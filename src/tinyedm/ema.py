@@ -394,7 +394,7 @@ class EMAOptimizer(torch.optim.Optimizer):
     @torch.no_grad()
     def update(self):
         """Updates EMA parameters."""
-        decay = (1 - 1 / (self.current_step+1)) ** (self.gamma + 1)
+        decay = (1 - 1 / (self.current_step + 1)) ** (self.gamma + 1)
         if self.stream is not None:
             self.stream.wait_stream(torch.cuda.current_stream())
 

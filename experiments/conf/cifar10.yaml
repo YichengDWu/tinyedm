@@ -41,9 +41,9 @@ denoiser:
 
 model:
     use_uncertainty: False
-    lr: 0.002
-    warmup_steps: 1000
-
+    lr: 0.01
+    steady_steps: 500
+    rampup_steps: 500
 
 solver:
     _target_: tinyedm.DeterministicSolver
