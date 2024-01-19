@@ -137,6 +137,7 @@ class Embedding(nn.Module):
         add_factor: float = 0.5,
     ):
         super().__init__()
+        self.fourier_dim = fourier_dim
         self.add_factor = add_factor
         self._embedding_dim = embedding_dim
         self._num_classes = num_classes
@@ -506,6 +507,7 @@ class Denoiser(nn.Module):
             len(skip_connections) == len(decoder_out_channels)
         ), f"skip_connections must have the same length as decoder_out_channels, got {len(skip_connections)} and {len(decoder_out_channels)}"
 
+
         (
             encoder_block_types,
             decoder_block_types,
@@ -552,6 +554,21 @@ class Denoiser(nn.Module):
             cat_factor=decoder_cat_factor,
             head_dim=head_dim,
         )
+        
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.encoder_block_types = encoder_block_types
+        self.decoder_block_types = decoder_block_types
+        self.encoder_out_channels = encoder_out_channels
+        self.decoder_out_channels = decoder_out_channels
+        self.skip_connections = skip_connections
+        self.dropout_rate = dropout_rate
+        self.sigma_data = sigma_data
+        self.encoder_add_factor = encoder_add_factor
+        self.decoder_add_factor = decoder_add_factor
+        self.decoder_cat_factor = decoder_cat_factor
+        self.embedding_dim = embedding_dim
+        self.head_dim = head_dim
 
     @property
     def sigma_data(self) -> float:
