@@ -140,14 +140,18 @@ class EDM(L.LightningModule):
         weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
         if self.u is not None:
             uncertainty = self.u(embedding.detach()).flatten()
+            uncertainty_mean = uncertainty.mean()
             loss = (
                 self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
-                + uncertainty.mean()
+                + uncertainty_mean
             )
+            self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
+            self.log("uncertainty", uncertainty_mean, prog_bar=False, on_epoch=True, on_step=False)    
+            
         else:
             loss = self.mse(weight, denoised_image, clean_image)
-
-        self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
+            self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
+            
         self.log(
             "learning_rate",
             self.lr_schedulers().get_last_lr()[0],
