@@ -63,7 +63,7 @@ class EDMSolver(Protocol):
         ...
 
 
-class Diffuser:
+class Diffuser(nn.Module):
     """
     A diffusion model that adds Gaussian noise to the input. The noise is sampled from
 
@@ -79,11 +79,12 @@ class Diffuser:
     """
 
     def __init__(self, P_mean: float, P_std: float) -> None:
+        super().__init__()
         self.P_mean = P_mean
         self.P_std = P_std
 
     @torch.no_grad()
-    def __call__(self, clean_image: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(self, clean_image: Tensor) -> tuple[Tensor, Tensor]:
         epsilon = torch.randn(
             clean_image.shape[0], device=clean_image.device, dtype=clean_image.dtype
         )
@@ -92,15 +93,17 @@ class Diffuser:
         noise = torch.randn_like(clean_image)
         noise = noise * sigma.view(-1, 1, 1, 1)
         return clean_image + noise, sigma
-
+    
+    def extra_repr(self) -> str:
+        return f"P_mean={self.P_mean}, P_std={self.P_std}"
 
 class EDM(L.LightningModule):
     def __init__(
         self,
         *,
         diffuser: EDMDiffuser,
-        denoiser: EDMDenoiser,
         embedding: EDMEmbedding,
+        denoiser: EDMDenoiser,
         use_uncertainty: bool,
         steady_steps: int,
         rampup_steps: int,
@@ -111,11 +114,12 @@ class EDM(L.LightningModule):
         super().__init__()
 
         self.diffuser = diffuser
-        self.denoiser = denoiser
         self.embedding = embedding
+        self.denoiser = denoiser
         self.use_uncertainty = use_uncertainty
         self.steady_steps = steady_steps
         self.rampup_steps = rampup_steps
+        self.betas = betas
 
         assert (
             hasattr(self.embedding, "embedding_dim")
