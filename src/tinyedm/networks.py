@@ -499,7 +499,6 @@ class Denoiser(nn.Module):
             len(skip_connections) == len(decoder_out_channels)
         ), f"skip_connections must have the same length as decoder_out_channels, got {len(skip_connections)} and {len(decoder_out_channels)}"
 
-
         (
             encoder_block_types,
             decoder_block_types,
@@ -516,7 +515,6 @@ class Denoiser(nn.Module):
                 skip_connections,
             ),
         )
-        self._sigma_data = sigma_data
         self.skip_connections = skip_connections
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)

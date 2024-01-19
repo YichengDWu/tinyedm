@@ -7,6 +7,7 @@ import lightning as L
 from tinyedm import DeterministicSolver
 import argparse
 
+
 def generate(
     ckpt_path,
     config_path,
@@ -34,11 +35,13 @@ def generate(
         num_classes=num_classes,
     )
 
-    mean, std =  (0.49139968, 0.48215841, 0.44653091), (0.24703223, 0.24348513, 0.26158784) # need to do better
+    mean, std = (
+        (0.49139968, 0.48215841, 0.44653091),
+        (0.24703223, 0.24348513, 0.26158784),
+    )  # need to do better
     prediction_writer = PreditionWriter(
         output_dir=output_dir, write_interval="batch", mean=mean, std=std
     )
-    
 
     trainer = L.Trainer(
         accelerator="gpu",
@@ -46,19 +49,36 @@ def generate(
         callbacks=[prediction_writer],
         enable_model_summary=False,
     )
-    trainer.predict(model, datamodule=datamodule, return_predictions=False, ckpt_path=ckpt_path)
+    trainer.predict(
+        model, datamodule=datamodule, return_predictions=False, ckpt_path=ckpt_path
+    )
+
 
 def main():
     parser = argparse.ArgumentParser(description="Run the model generation")
-    parser.add_argument("--ckpt_path", type=str, required=True, help="Path to the checkpoint file")
-    parser.add_argument("--config_path", type=str, required=True, help="Path to the config file")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory for output")
-    parser.add_argument("--num_samples", type=int, required=True, help="Number of samples to generate")
+    parser.add_argument(
+        "--ckpt_path", type=str, required=True, help="Path to the checkpoint file"
+    )
+    parser.add_argument(
+        "--config_path", type=str, required=True, help="Path to the config file"
+    )
+    parser.add_argument(
+        "--output_dir", type=str, required=True, help="Directory for output"
+    )
+    parser.add_argument(
+        "--num_samples", type=int, required=True, help="Number of samples to generate"
+    )
     parser.add_argument("--image_size", type=int, required=True, help="Image size")
-    parser.add_argument("--num_classes", type=int, required=True, help="Number of classes")
+    parser.add_argument(
+        "--num_classes", type=int, required=True, help="Number of classes"
+    )
     parser.add_argument("--batch_size", type=int, required=True, help="Batch size")
-    parser.add_argument("--num_workers", type=int, default=16, help="Number of workers (default: 16)")
-    parser.add_argument("--num_steps", type=int, default=32, help="Number of steps (default: 32)")
+    parser.add_argument(
+        "--num_workers", type=int, default=16, help="Number of workers (default: 16)"
+    )
+    parser.add_argument(
+        "--num_steps", type=int, default=32, help="Number of steps (default: 32)"
+    )
     args = parser.parse_args()
 
     # Call generate with arguments from command line
@@ -73,6 +93,7 @@ def main():
         args.num_workers,
         args.num_steps,
     )
+
 
 if __name__ == "__main__":
     main()
