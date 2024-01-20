@@ -27,6 +27,7 @@ from lightning.pytorch.utilities.exceptions import MisconfigurationException
 import numpy as np
 from .utils import swap_tensors
 
+
 def sigma_rel_to_gamma(sigma_rel):
     t = sigma_rel**-2
     gamma = np.roots([1, 7, 16 - t, 12 - t]).real.max()
@@ -67,7 +68,6 @@ class EMA(Callback):
     def on_fit_start(
         self, trainer: "L.Trainer", pl_module: "L.LightningModule"
     ) -> None:
-        print("EMA Callback")
         device = pl_module.device if not self.cpu_offload else torch.device("cpu")
         trainer.optimizers = [
             EMAOptimizer(
@@ -77,8 +77,9 @@ class EMA(Callback):
                 every_n_steps=self.every_n_steps,
                 current_step=trainer.global_step,
             )
-            for optim in trainer.optimizers
             if not isinstance(optim, EMAOptimizer)
+            else optim
+            for optim in trainer.optimizers
         ]
 
     def on_validation_start(
