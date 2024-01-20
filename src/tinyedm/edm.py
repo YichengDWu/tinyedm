@@ -5,7 +5,7 @@ from .metric import WeightedMeanSquaredError
 from .networks import Linear, UncertaintyNet
 from torch.optim.lr_scheduler import LambdaLR, LinearLR, ConstantLR, SequentialLR
 
-from typing import Protocol
+from typing import Protocol, Any
 import numpy as np
 
 
@@ -190,6 +190,12 @@ class EDM(L.LightningModule):
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
         return denoised_image
 
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int | None = None):
+        x0, class_label = batch
+        xT = self.solver.solve(self, x0, class_label)
+
+        return xT
+    
     @property
     def num_classes(self) -> int | None:
         return self.embedding.num_classes
