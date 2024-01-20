@@ -25,6 +25,7 @@ from lightning import Callback
 from lightning.pytorch.utilities import rank_zero_info
 from lightning.pytorch.utilities.exceptions import MisconfigurationException
 import numpy as np
+from .utils import swap_tensors
 
 
 def sigma_rel_to_gamma(sigma_rel):
@@ -76,8 +77,9 @@ class EMA(Callback):
                 every_n_steps=self.every_n_steps,
                 current_step=trainer.global_step,
             )
-            for optim in trainer.optimizers
             if not isinstance(optim, EMAOptimizer)
+            else optim
+            for optim in trainer.optimizers
         ]
 
     def on_validation_start(
@@ -297,16 +299,10 @@ class EMAOptimizer(torch.optim.Optimizer):
             )
             self.thread.start()
 
-    def swap_tensors(self, tensor1, tensor2):
-        tmp = torch.empty_like(tensor1)
-        tmp.copy_(tensor1)
-        tensor1.copy_(tensor2)
-        tensor2.copy_(tmp)
-
     def switch_main_parameter_weights(self):
         self.synchronize()
         for param, ema_param in zip(self.all_parameters(), self.ema_params):
-            self.swap_tensors(param.data, ema_param)
+            swap_tensors(param.data, ema_param)
 
     @contextlib.contextmanager
     def swap_ema_weights(self, enabled: bool = True):
