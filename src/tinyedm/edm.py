@@ -4,9 +4,10 @@ from torch import Tensor, nn, optim
 from .metric import WeightedMeanSquaredError
 from .networks import Linear, UncertaintyNet
 from torch.optim.lr_scheduler import LambdaLR, LinearLR, ConstantLR, SequentialLR
-
+from .ema import EMA, EMAOptimizer
 from typing import Protocol, Any
 import numpy as np
+import contextlib
 
 
 class EDMDiffuser(Protocol):
@@ -93,9 +94,10 @@ class Diffuser(nn.Module):
         noise = torch.randn_like(clean_image)
         noise = noise * sigma.view(-1, 1, 1, 1)
         return clean_image + noise, sigma
-    
+
     def extra_repr(self) -> str:
         return f"P_mean={self.P_mean}, P_std={self.P_std}"
+
 
 class EDM(L.LightningModule):
     def __init__(
@@ -104,27 +106,40 @@ class EDM(L.LightningModule):
         diffuser: EDMDiffuser,
         embedding: EDMEmbedding,
         denoiser: EDMDenoiser,
+        use_ema: bool,
         use_uncertainty: bool,
         steady_steps: int,
         rampup_steps: int,
         sigma_data: float | None = None,
         lr: float = 1e-4,
         betas: tuple[float, float] = (0.9, 0.999),
+        ema_length: float | None = None,
+        validate_original_weights: bool = False,
+        every_n_steps: int = 1,
+        cpu_offload: bool = False,
     ) -> None:
         super().__init__()
+
+        assert (
+            hasattr(embedding, "embedding_dim") and embedding.embedding_dim is not None
+        ), "Embedding must have an embedding_dim attribute."
+
+        if use_ema and ema_length is None:
+            raise ValueError("ema_length must be specified when use_ema is True.")
 
         self.diffuser = diffuser
         self.embedding = embedding
         self.denoiser = denoiser
+        self.use_ema = use_ema
         self.use_uncertainty = use_uncertainty
         self.steady_steps = steady_steps
         self.rampup_steps = rampup_steps
         self.betas = betas
+        self.ema_length = ema_length
+        self.validate_original_weights = validate_original_weights
+        self.every_n_steps = every_n_steps
+        self.cpu_offload = cpu_offload
 
-        assert (
-            hasattr(self.embedding, "embedding_dim")
-            and self.embedding.embedding_dim is not None
-        ), "Embedding must have an embedding_dim attribute."
         self.u = (
             UncertaintyNet(embedding.embedding_dim, embedding.embedding_dim)
             if use_uncertainty
@@ -149,13 +164,23 @@ class EDM(L.LightningModule):
                 self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
                 + uncertainty_mean
             )
-            self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
-            self.log("uncertainty", uncertainty_mean, prog_bar=False, on_epoch=True, on_step=False)    
-            
+            self.log(
+                "train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False
+            )
+            self.log(
+                "uncertainty",
+                uncertainty_mean,
+                prog_bar=False,
+                on_epoch=True,
+                on_step=False,
+            )
+
         else:
             loss = self.mse(weight, denoised_image, clean_image)
-            self.log("train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False)
-            
+            self.log(
+                "train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False
+            )
+
         self.log(
             "learning_rate",
             self.lr_schedulers().get_last_lr()[0],
@@ -183,6 +208,18 @@ class EDM(L.LightningModule):
             },
         }
 
+    def configure_callbacks(self):
+        callbacks = []
+        if self.use_ema:
+            ema_callback = EMA(
+                ema_length=self.ema_length,
+                validate_original_weights=self.validate_original_weights,
+                cpu_offload=self.cpu_offload,
+                every_n_steps=self.every_n_steps,
+            )
+            callbacks.append(ema_callback)
+        return callbacks
+
     def forward(
         self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
     ) -> Tensor:
@@ -190,12 +227,14 @@ class EDM(L.LightningModule):
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
         return denoised_image
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int | None = None):
+    def predict_step(
+        self, batch: Any, batch_idx: int, dataloader_idx: int | None = None
+    ):
         x0, class_label = batch
         xT = self.solver.solve(self, x0, class_label)
 
         return xT
-    
+
     @property
     def num_classes(self) -> int | None:
         return self.embedding.num_classes
@@ -215,5 +254,21 @@ class EDM(L.LightningModule):
         return SequentialLR(
             optimizer,
             schedulers=[rampup_scheduler, constant_scheduler, decay_scheduler],
-            milestones=[rampup_steps, steady_steps+rampup_steps],
+            milestones=[rampup_steps, steady_steps + rampup_steps],
         )
+
+    @contextlib.contextmanager
+    def swap_ema_weights(self, trainer):
+        optimizer = trainer.optimizers[0]
+                
+        if not (self.use_ema and isinstance(optimizer, EMAOptimizer)):
+            raise ValueError(
+                "EMA is not used or the optimizer is not an EMAOptimizer."
+            )
+
+        optimizer.switch_main_parameter_weights()
+        try:
+            yield
+
+        finally:
+            optimizer.switch_main_parameter_weights()

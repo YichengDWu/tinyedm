@@ -67,12 +67,6 @@ class EMA(Callback):
     def on_fit_start(
         self, trainer: "L.Trainer", pl_module: "L.LightningModule"
     ) -> None:
-        """Perform actions at the beginning of training.
-
-        Args:
-            trainer: a Trainer
-            pl_module: a LightningModule
-        """
         device = pl_module.device if not self.cpu_offload else torch.device("cpu")
         trainer.optimizers = [
             EMAOptimizer(
@@ -89,57 +83,26 @@ class EMA(Callback):
     def on_validation_start(
         self, trainer: "L.Trainer", pl_module: "L.LightningModule"
     ) -> None:
-        """Perform actions at the beginning of validation.
-
-        Args:
-            trainer: a Trainer
-            pl_module: a LightningModule
-        """
         if self._should_validate_ema_weights(trainer):
             self.swap_model_weights(trainer)
 
     def on_validation_end(
         self, trainer: "L.Trainer", pl_module: "L.LightningModule"
     ) -> None:
-        """Perform actions at the end of validation.
-
-        Args:
-            trainer: a Trainer
-            pl_module: a LightningModule
-        """
         if self._should_validate_ema_weights(trainer):
             self.swap_model_weights(trainer)
 
     def on_test_start(
         self, trainer: "L.Trainer", pl_module: "L.LightningModule"
     ) -> None:
-        """Perform actions at the beginning of testing.
-
-        Args:
-            trainer: a Trainer
-            pl_module: a LightningModule
-        """
         if self._should_validate_ema_weights(trainer):
             self.swap_model_weights(trainer)
 
     def on_test_end(self, trainer: "L.Trainer", pl_module: "L.LightningModule") -> None:
-        """Perform actions at the end of testing.
-
-        Args:
-            trainer: a Trainer
-            pl_module: a LightningModule
-        """
         if self._should_validate_ema_weights(trainer):
             self.swap_model_weights(trainer)
 
     def _should_validate_ema_weights(self, trainer: "L.Trainer") -> bool:
-        """Check if we should validate the EMA weights.
-
-        Args:
-            trainer: a Trainer
-        Returns:
-            True if we should validate the EMA weights, False otherwise
-        """
         return not self.validate_original_weights and self._ema_initialized(trainer)
 
     def _ema_initialized(self, trainer: "L.Trainer") -> bool:
@@ -154,93 +117,10 @@ class EMA(Callback):
             isinstance(optimizer, EMAOptimizer) for optimizer in trainer.optimizers
         )
 
-    def swap_model_weights(self, trainer: "L.Trainer", saving_ema_model: bool = False):
-        """Swap the model weights.
-
-        Args:
-            trainer: a Trainer
-        Returns:
-            saving_ema_model: True if we are saving the EMA model, False otherwise
-        """
+    def swap_model_weights(self, trainer: "L.Trainer"):
         for optimizer in trainer.optimizers:
             assert isinstance(optimizer, EMAOptimizer)
-            optimizer.switch_main_parameter_weights(saving_ema_model)
-
-    @contextlib.contextmanager
-    def save_ema_model(self, trainer: "L.Trainer"):
-        """Saves an EMA copy of the model + EMA optimizer states for resume.
-
-        Args:
-            trainer: a Trainer
-        """
-        self.swap_model_weights(trainer, saving_ema_model=True)
-        try:
-            yield
-        finally:
-            self.swap_model_weights(trainer, saving_ema_model=False)
-
-    @contextlib.contextmanager
-    def save_original_optimizer_state(self, trainer: "L.Trainer"):
-        """Saves the original optimizer state for resuming in the future.
-
-        Args:
-            trainer: a Trainer
-        """
-        for optimizer in trainer.optimizers:
-            assert isinstance(optimizer, EMAOptimizer)
-            optimizer.save_original_optimizer_state = True
-        try:
-            yield
-        finally:
-            for optimizer in trainer.optimizers:
-                optimizer.save_original_optimizer_state = False
-
-    def on_load_checkpoint(
-        self,
-        trainer: "L.Trainer",
-        pl_module: "L.LightningModule",
-        checkpoint: Dict[str, Any],
-    ) -> None:
-        """Perform actions when restoring a checkpoint.
-
-        Args:
-            trainer: a Trainer
-            pl_module: a LightningModule (unused currently, kept for compatibility with
-                Lightning's API)
-            checkpoint: a checkpoint
-        """
-        checkpoint_callback = trainer.checkpoint_callback
-
-        # use the connector as NeMo calls the connector directly in the exp_manager when restoring.
-        connector = trainer._checkpoint_connector
-        # Replace connector._ckpt_path with below to avoid calling into lightning's protected API
-        ckpt_path = trainer.ckpt_path
-
-        if (
-            ckpt_path
-            and checkpoint_callback is not None
-            and "NeMo" in type(checkpoint_callback).__name__
-        ):
-            ext = checkpoint_callback.FILE_EXTENSION
-            if ckpt_path.endswith(f"-EMA{ext}"):
-                rank_zero_info(
-                    "Loading EMA based weights. "
-                    "The callback will treat the loaded EMA weights as the main weights"
-                    " and create a new EMA copy when training."
-                )
-                return
-            ema_path = ckpt_path.replace(ext, f"-EMA{ext}")
-            if os.path.exists(ema_path):
-                ema_state_dict = torch.load(ema_path, map_location=torch.device("cpu"))
-
-                checkpoint["optimizer_states"] = ema_state_dict["optimizer_states"]
-                del ema_state_dict
-                rank_zero_info("EMA state has been restored.")
-            else:
-                raise MisconfigurationException(
-                    "Unable to find the associated EMA weights when re-loading, "
-                    f"training will start with new EMA weights. Expected them to be at: {ema_path}",
-                )
+            optimizer.switch_main_parameter_weights()
 
 
 @torch.no_grad()
@@ -332,7 +212,6 @@ class EMAOptimizer(torch.optim.Optimizer):
         self.device = device
         self.current_step = current_step
         self.every_n_steps = every_n_steps
-        self.save_original_optimizer_state = False
 
         self.first_iteration = True
         self.rebuild_ema_params = True
@@ -340,7 +219,6 @@ class EMAOptimizer(torch.optim.Optimizer):
         self.thread = None
 
         self.ema_params = ()
-        self.in_saving_ema_model_context = False
 
     def all_parameters(self) -> Iterable[torch.Tensor]:
         """Returns an iterable of all parameters in the optimizer.
@@ -359,7 +237,7 @@ class EMAOptimizer(torch.optim.Optimizer):
         Returns:
             the loss
         """
-        self.join()
+        self.synchronize()
 
         if self.first_iteration:
             if any(p.is_cuda for p in self.all_parameters()):
@@ -420,25 +298,13 @@ class EMAOptimizer(torch.optim.Optimizer):
             self.thread.start()
 
     def swap_tensors(self, tensor1, tensor2):
-        """Swap two tensors in-place.
-
-        Args:
-            tensor1: a tensor
-            tensor2: a tensor
-        """
         tmp = torch.empty_like(tensor1)
         tmp.copy_(tensor1)
         tensor1.copy_(tensor2)
         tensor2.copy_(tmp)
 
-    def switch_main_parameter_weights(self, saving_ema_model: bool = False):
-        """Switch the main parameter weights.
-
-        Args:
-            saving_ema_model: True if we are saving the EMA model, False otherwise
-        """
-        self.join()
-        self.in_saving_ema_model_context = saving_ema_model
+    def switch_main_parameter_weights(self):
+        self.synchronize()
         for param, ema_param in zip(self.all_parameters(), self.ema_params):
             self.swap_tensors(param.data, ema_param)
 
@@ -463,8 +329,7 @@ class EMAOptimizer(torch.optim.Optimizer):
         """Proxy non-overridden attributes to the underlying optimizer."""
         return getattr(self.optimizer, name)
 
-    def join(self):
-        """Joins the update thread."""
+    def synchronize(self):
         if self.stream is not None:
             self.stream.synchronize()
 
@@ -472,29 +337,11 @@ class EMAOptimizer(torch.optim.Optimizer):
             self.thread.join()
 
     def state_dict(self):
-        """
-        Returns the state of the optimizer as a `dict`. It contains two entries:
-        * opt_state - a dict holding current optimization state. Its content
-            differs between optimizer classes.
-            * ema_state - a list of EMA parameters
-            * current_step - the current step
-            * decay - the decay factor
-            * every_n_steps - the number of steps between updates
-        """
-        self.join()
+        self.synchronize()
 
-        if self.save_original_optimizer_state:
-            return self.optimizer.state_dict()
-
-        # if we are in the context of saving an EMA model, the EMA weights are in the modules' actual weights
-        ema_params = (
-            self.ema_params
-            if not self.in_saving_ema_model_context
-            else list(self.all_parameters())
-        )
         state_dict = {
             "opt": self.optimizer.state_dict(),
-            "ema": ema_params,
+            "ema": self.ema_params,
             "current_step": self.current_step,
             "gamma": self.gamma,
             "every_n_steps": self.every_n_steps,
@@ -502,12 +349,7 @@ class EMAOptimizer(torch.optim.Optimizer):
         return state_dict
 
     def load_state_dict(self, state_dict):
-        """Loads the optimizer state.
-
-        Args:
-            state_dict: a state dictionary
-        """
-        self.join()
+        self.synchronize()
 
         self.optimizer.load_state_dict(state_dict["opt"])
         self.ema_params = tuple(
@@ -517,12 +359,3 @@ class EMAOptimizer(torch.optim.Optimizer):
         self.gamma = state_dict["gamma"]
         self.every_n_steps = state_dict["every_n_steps"]
         self.rebuild_ema_params = False
-
-    def add_param_group(self, param_group):
-        """Add a parameter group to the optimizer.
-
-        Args:
-            param_group: a parameter group
-        """
-        self.optimizer.add_param_group(param_group)
-        self.rebuild_ema_params = True

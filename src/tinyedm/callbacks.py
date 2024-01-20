@@ -9,6 +9,7 @@ from .ema import EMAOptimizer
 from pathlib import Path
 from PIL import Image
 
+
 class LogBestCkptCallback(Callback):
     def __init__(self):
         super().__init__()
@@ -24,7 +25,6 @@ class GenerateCallback(Callback):
     def __init__(
         self,
         solver: EDMSolver,
-        enable_ema: bool,
         img_shape: tuple[int, int, int],
         mean: tuple,
         std: tuple,
@@ -34,7 +34,6 @@ class GenerateCallback(Callback):
     ):
         super().__init__()
         self.solver = solver
-        self.enable_ema = enable_ema
         self.num_samples = num_samples
         self.img_shape = img_shape
         self.every_n_epochs = every_n_epochs
@@ -62,11 +61,8 @@ class GenerateCallback(Callback):
         if trainer.current_epoch % self.every_n_epochs == 0:
             pl_module.eval()
             with torch.no_grad():
-                if self.enable_ema:
-                    opt = [
-                        x for x in trainer.optimizers if isinstance(x, EMAOptimizer)
-                    ][0]
-                    with opt.swap_ema_weights():
+                if pl_module.use_ema:
+                    with pl_module.swap_ema_weights():
                         xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 else:
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
@@ -94,18 +90,20 @@ class UploadCheckpointCallback(Callback):
 
 
 class PreditionWriter(BasePredictionWriter):
-    def __init__(self, output_dir: str, write_interval: str, mean: Sequence, std: Sequence):
+    def __init__(
+        self, output_dir: str, write_interval: str, mean: Sequence, std: Sequence
+    ):
         super().__init__(write_interval)
         self.output_dir = Path(output_dir)
         self.mean = mean
         self.std = std
-        
+
         self.output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def setup(self, trainer, pl_module, stage: str):
         self.std = torch.tensor(self.std, device=pl_module.device).view(1, -1, 1, 1)
         self.mean = torch.tensor(self.mean, device=pl_module.device).view(1, -1, 1, 1)
-                              
+
     def write_on_batch_end(
         self,
         trainer,
