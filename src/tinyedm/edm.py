@@ -150,8 +150,8 @@ class EDM(L.LightningModule):
         self.hparams.update(cfg)
 
     @classmethod
-    def load_from_checkpoint(cls, checkpoint_path, map_location, strict: bool = True, **kwargs: Any) -> Self:
-        checkpoint = torch.load(checkpoint_path, map_location=map_location)
+    def load_from_checkpoint(cls, checkpoint_path, map_location=None, strict: bool = True, **kwargs: Any) -> Self:
+        checkpoint = torch.load(checkpoint_path, map_location=map_location, **kwargs)
         model = instantiate(checkpoint["hyper_parameters"])
         state_dict = checkpoint["state_dict"]
         if not state_dict:

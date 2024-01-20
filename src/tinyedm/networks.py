@@ -137,10 +137,11 @@ class Embedding(nn.Module):
         add_factor: float = 0.5,
     ):
         super().__init__()
+        self.fourier_dim = fourier_dim
         self.add_factor = add_factor
         self.embedding_dim = embedding_dim
         self.num_classes = num_classes
-        self.fourier_features = FourierEmbedding(fourier_dim)
+        self.fourier_embed = FourierEmbedding(fourier_dim)
         self.sigma_embed = Linear(fourier_dim, embedding_dim)
         self.class_embed = None
         if num_classes is not None:
@@ -148,7 +149,7 @@ class Embedding(nn.Module):
 
     def forward(self, sigmas, class_labels=None):
         c_noise = sigmas.log() / 4
-        embedding = self.fourier_features(c_noise)
+        embedding = self.fourier_embed(c_noise)
         embedding = self.sigma_embed(embedding)
 
         if class_labels is not None:
