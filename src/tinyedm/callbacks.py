@@ -62,7 +62,7 @@ class GenerateCallback(Callback):
             pl_module.eval()
             with torch.no_grad():
                 if pl_module.use_ema:
-                    with pl_module.swap_ema_weights():
+                    with pl_module.swap_ema_weights(trainer):
                         xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 else:
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
