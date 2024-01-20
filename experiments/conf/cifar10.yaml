@@ -35,8 +35,8 @@ model:
         out_channels: 3
         sigma_data: 0.5
         embedding_dim: ${model.embedding.embedding_dim}
-        encoder_block_types: ["EncA", "EncA", "EncA", "EncD", "EncA", "EncA", "EncA", "EncD", "EncA", "EncA", "EncA"]
-        decoder_block_types: ["DecA", "Dec", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA"]
+        encoder_block_types: ["Enc", "Enc", "Enc", "EncD", "EncA", "EncA", "EncA", "EncD", "EncA", "EncA", "EncA"]
+        decoder_block_types: ["DecA", "Dec", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA", "DecU", "Dec", "Dec", "Dec", "Dec"]
         encoder_out_channels: [128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512]
         decoder_out_channels: [512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 128, 128, 128, 128]
         skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
