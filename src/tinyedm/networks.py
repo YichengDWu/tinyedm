@@ -139,21 +139,13 @@ class Embedding(nn.Module):
         super().__init__()
         self.fourier_dim = fourier_dim
         self.add_factor = add_factor
-        self._embedding_dim = embedding_dim
-        self._num_classes = num_classes
+        self.embedding_dim = embedding_dim
+        self.num_classes = num_classes
         self.fourier_features = FourierEmbedding(fourier_dim)
         self.sigma_embed = Linear(fourier_dim, embedding_dim)
         self.class_embed = None
         if num_classes is not None:
             self.class_embed = ClassEmbedding(num_classes, embedding_dim)
-
-    @property
-    def embedding_dim(self) -> int:
-        return self._embedding_dim
-
-    @property
-    def num_classes(self) -> int | None:
-        return self._num_classes
 
     def forward(self, sigmas, class_labels=None):
         c_noise = sigmas.log() / 4
@@ -570,10 +562,6 @@ class Denoiser(nn.Module):
         self.embedding_dim = embedding_dim
         self.head_dim = head_dim
 
-    @property
-    def sigma_data(self) -> float:
-        return self._sigma_data
-
     def forward(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor):
         if sigma.ndim == 0:
             sigma = sigma * torch.ones(
@@ -631,11 +619,7 @@ class DenoiserWrapper(nn.Module):
         super().__init__()
 
         self.net = net
-        self._sigma_data = sigma_data
-
-    @property
-    def sigma_data(self) -> float:
-        return self._sigma_data
+        self.sigma_data = sigma_data
 
     def forward(
         self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
