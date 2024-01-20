@@ -2,13 +2,15 @@ import lightning as L
 import torch
 from torch import Tensor, nn, optim
 from .metric import WeightedMeanSquaredError
-from .networks import Linear, UncertaintyNet
+from .networks import UncertaintyNet
 from torch.optim.lr_scheduler import LambdaLR, LinearLR, ConstantLR, SequentialLR
 from .ema import EMA, EMAOptimizer
-from typing import Protocol, Any
+from .utils import deinstantiate
+from hydra.utils import instantiate
+from typing import Protocol, Any, Self, cast
 import numpy as np
 import contextlib
-
+from lightning.pytorch.utilities.rank_zero import rank_zero_warn
 
 class EDMDiffuser(Protocol):
     """
@@ -26,31 +28,22 @@ class EDMEmbedding(Protocol):
     An embedding that takes in a noise level and an **optional** class label (guidance) and outputs an embedding
     that is then fed into the denoiser.
     """
-
+    embedding_dim: int
+    num_classes: int | None
+    
     def __call__(self, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
         ...
-
-    @property
-    def embedding_dim(self) -> int:
-        ...
-
-    @property
-    def num_classes(self) -> int | None:
-        ...
-
 
 class EDMDenoiser(Protocol):
     """
     A denoiser that takes in a noisy image, the noise level, and an embedding and outputs a denoised image.
 
     """
+    sigma_data: float
 
     def __call__(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor) -> Tensor:
         ...
 
-    @property
-    def sigma_data(self) -> float:
-        ...
 
 
 class EDMSolver(Protocol):
@@ -149,6 +142,25 @@ class EDM(L.LightningModule):
         self.lr = lr
         self.betas = betas
         self.mse = WeightedMeanSquaredError()
+        self.save_config()
+
+    def save_config(self):
+        cfg = deinstantiate(self)
+        # update self.hparams with the config
+        self.hparams.update(cfg)
+
+    @classmethod
+    def load_from_checkpoint(cls, checkpoint_path, map_location, strict: bool = True, **kwargs: Any) -> Self:
+        checkpoint = torch.load(checkpoint_path, map_location=map_location)
+        model = instantiate(checkpoint["hyper_parameters"])
+        state_dict = checkpoint["state_dict"]
+        if not state_dict:
+            rank_zero_warn(f"The state dict in {checkpoint_path!r} contains no parameters.")
+            return model
+
+        device = next((t for t in state_dict.values() if isinstance(t, torch.Tensor)), torch.tensor(0)).device
+        assert isinstance(model, L.LightningModule)
+        return cast(Self, model.to(device))
 
     def training_step(self, batch, batch_idx):
         clean_image, class_label = batch
