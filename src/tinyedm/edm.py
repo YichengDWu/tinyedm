@@ -258,7 +258,7 @@ class EDM(L.LightningModule):
         )
 
     @contextlib.contextmanager
-    def swap_ema_weights(self, trainer):
+    def swap_ema_weights(self, trainer: L.Trainer):
         optimizer = trainer.optimizers[0]
                 
         if not (self.use_ema and isinstance(optimizer, EMAOptimizer)):
