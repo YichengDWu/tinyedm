@@ -120,6 +120,5 @@ class PreditionWriter(BasePredictionWriter):
         images = torch.clamp(images, 0, 1).permute(0, 2, 3, 1) * 255
         images = images.to(torch.uint8).cpu().numpy()
         for batch_index, image in zip(batch_indices, images):
-            image = (image * 255).astype("uint8")
             image = Image.fromarray(image)
             image.save(self.output_dir / f"{batch_index}.png")
