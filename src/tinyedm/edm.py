@@ -5,7 +5,7 @@ from .metric import WeightedMeanSquaredError
 from .networks import UncertaintyNet
 from torch.optim.lr_scheduler import LambdaLR, LinearLR, ConstantLR, SequentialLR
 from .ema import EMA, EMAOptimizer
-from .utils import deinstantiate
+from .utils import deinstantiate, swap_tensors
 from hydra.utils import instantiate
 from typing import Protocol, Any, Self, cast
 import numpy as np
@@ -150,17 +150,28 @@ class EDM(L.LightningModule):
         self.hparams.update(cfg)
 
     @classmethod
-    def load_from_checkpoint(cls, checkpoint_path, map_location=None, strict: bool = True, **kwargs: Any) -> Self:
+    def load_from_checkpoint(cls, checkpoint_path, *, map_location=None, use_ema: bool=False, **kwargs: Any) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, **kwargs)
         model = instantiate(checkpoint["hyper_parameters"])
-        state_dict = checkpoint["state_dict"]
-        if not state_dict:
-            rank_zero_warn(f"The state dict in {checkpoint_path!r} contains no parameters.")
-            return model
-
-        device = next((t for t in state_dict.values() if isinstance(t, torch.Tensor)), torch.tensor(0)).device
         assert isinstance(model, L.LightningModule)
-        return cast(Self, model.to(device))
+
+        if use_ema:
+            ema_params = checkpoint["optimizer_states"][0]["ema"]
+            for param, ema_param in zip(model.parameters(), ema_params):
+                swap_tensors(param.data, ema_param)
+                
+            print("EMA weights loaded.")
+            device = next((t for t in ema_params if isinstance(t, torch.Tensor)), torch.tensor(0)).device
+            model.to(device)             
+        else:
+            state_dict = checkpoint["state_dict"]
+            if not state_dict:
+                rank_zero_warn(f"The state dict in {checkpoint_path!r} contains no parameters.")
+                return model
+
+            device = next((t for t in state_dict.values() if isinstance(t, torch.Tensor)), torch.tensor(0)).device
+            model.to(device)
+        return cast(Self, model)
 
     def training_step(self, batch, batch_idx):
         clean_image, class_label = batch
