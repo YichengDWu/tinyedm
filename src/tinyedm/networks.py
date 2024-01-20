@@ -138,21 +138,13 @@ class Embedding(nn.Module):
     ):
         super().__init__()
         self.add_factor = add_factor
-        self._embedding_dim = embedding_dim
-        self._num_classes = num_classes
+        self.embedding_dim = embedding_dim
+        self.num_classes = num_classes
         self.fourier_features = FourierEmbedding(fourier_dim)
         self.sigma_embed = Linear(fourier_dim, embedding_dim)
         self.class_embed = None
         if num_classes is not None:
             self.class_embed = ClassEmbedding(num_classes, embedding_dim)
-
-    @property
-    def embedding_dim(self) -> int:
-        return self._embedding_dim
-
-    @property
-    def num_classes(self) -> int | None:
-        return self._num_classes
 
     def forward(self, sigmas, class_labels=None):
         c_noise = sigmas.log() / 4
@@ -522,7 +514,6 @@ class Denoiser(nn.Module):
                 skip_connections,
             ),
         )
-        self._sigma_data = sigma_data
         self.skip_connections = skip_connections
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
@@ -552,10 +543,21 @@ class Denoiser(nn.Module):
             cat_factor=decoder_cat_factor,
             head_dim=head_dim,
         )
-
-    @property
-    def sigma_data(self) -> float:
-        return self._sigma_data
+        
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.encoder_block_types = encoder_block_types
+        self.decoder_block_types = decoder_block_types
+        self.encoder_out_channels = encoder_out_channels
+        self.decoder_out_channels = decoder_out_channels
+        self.skip_connections = skip_connections
+        self.dropout_rate = dropout_rate
+        self.sigma_data = sigma_data
+        self.encoder_add_factor = encoder_add_factor
+        self.decoder_add_factor = decoder_add_factor
+        self.decoder_cat_factor = decoder_cat_factor
+        self.embedding_dim = embedding_dim
+        self.head_dim = head_dim
 
     def forward(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor):
         if sigma.ndim == 0:
