@@ -112,7 +112,7 @@ class ClassEmbedding(nn.Module):
         self.linear = Linear(num_embeddings, embedding_dim)
 
     def forward(self, class_labels: Tensor):
-        class_emb = F.one_hot(class_labels, self.num_embeddings)
+        class_emb = F.one_hot(class_labels.flatten(), self.num_embeddings)
         return self.linear(class_emb * np.sqrt(self.num_embeddings, dtype=np.float32))
 
 

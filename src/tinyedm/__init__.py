@@ -4,6 +4,7 @@ from .callbacks import (
     GenerateCallback,
     UploadCheckpointCallback,
     LogBestCkptCallback,
+    PreditionWriter,
 )
 from .solvers import DeterministicSolver
 from .metric import WeightedMeanSquaredError

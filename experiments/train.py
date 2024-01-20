@@ -26,20 +26,7 @@ def main(cfg: DictConfig) -> None:
     datamodule.prepare_data()
     datamodule.setup("fit")
 
-    diffuser = hydra.utils.instantiate(cfg.diffuser)
-    embedding = hydra.utils.instantiate(cfg.embedding)
-    denoiser = hydra.utils.instantiate(cfg.denoiser)
-
-    if cfg.compile:
-        denoiser = torch.compile(denoiser, fullgraph=True)
-        embedding = torch.compile(embedding, fullgraph=True)
-
-    model = EDM(
-        denoiser=denoiser,
-        diffuser=diffuser,
-        embedding=embedding,
-        **cfg.model,
-    )
+    model = hydra.utils.instantiate(cfg.model)
     print(model)
 
     solver = hydra.utils.instantiate(cfg.solver, dtype=torch.float32)

@@ -1,11 +1,13 @@
-from lightning.pytorch.callbacks import Callback
+from typing import Sequence
+from lightning.pytorch.callbacks import Callback, BasePredictionWriter
 from .edm import EDMSolver
 import torch
 from torchvision.utils import make_grid
 import wandb
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 from .ema import EMAOptimizer
-
+from pathlib import Path
+from PIL import Image
 
 class LogBestCkptCallback(Callback):
     def __init__(self):
@@ -89,3 +91,35 @@ class UploadCheckpointCallback(Callback):
         artifact = wandb.Artifact("checkpoints", type="model")
         artifact.add_file(best_model_path)
         trainer.logger.experiment.log_artifact(artifact)
+
+
+class PreditionWriter(BasePredictionWriter):
+    def __init__(self, output_dir: str, write_interval: str, mean: Sequence, std: Sequence):
+        super().__init__(write_interval)
+        self.output_dir = Path(output_dir)
+        self.mean = mean
+        self.std = std
+        
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    def setup(self, trainer, pl_module, stage: str):
+        self.std = torch.tensor(self.std, device=pl_module.device).view(1, -1, 1, 1)
+        self.mean = torch.tensor(self.mean, device=pl_module.device).view(1, -1, 1, 1)
+                              
+    def write_on_batch_end(
+        self,
+        trainer,
+        pl_module,
+        prediction,
+        batch_indices,
+        batch,
+        batch_idx,
+        dataloader_idx,
+    ) -> None:
+        images = prediction * self.std * 2 + self.mean
+        images = torch.clamp(images, 0, 1).permute(0, 2, 3, 1) * 255
+        images = images.to(torch.uint8).cpu().numpy()
+        for batch_index, image in zip(batch_indices, images):
+            image = (image * 255).astype("uint8")
+            image = Image.fromarray(image)
+            image.save(self.output_dir / f"{batch_index}.png")

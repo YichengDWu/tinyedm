@@ -161,3 +161,4 @@ lightning_logs/
 .pdm-python
 outputs/
 notebooks/
+images/
