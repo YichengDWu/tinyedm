@@ -39,7 +39,6 @@ def main(cfg: DictConfig) -> None:
     logckptpath_callback = LogBestCkptCallback()
     generate_callback = GenerateCallback(
         solver=solver,
-        enable_ema=cfg.ema.enable,
         std=datamodule.std,
         mean=datamodule.mean,
         value_range=(0, 1),
@@ -52,15 +51,6 @@ def main(cfg: DictConfig) -> None:
         generate_callback,
         upload_callback,
     ]
-
-    if cfg.ema.enable:
-        ema_callback = EMA(
-            ema_length=cfg.ema.ema_length,
-            validate_original_weights=cfg.ema.validate_original_weights,
-            cpu_offload=cfg.ema.cpu_offload,
-            every_n_steps=cfg.ema.every_n_steps,
-        )
-        callbacks.append(ema_callback)
 
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
 

@@ -46,6 +46,13 @@ model:
     steady_steps: 500
     rampup_steps: 500
 
+    use_ema: False
+    ema_length: 0.1
+    validate_original_weights: False
+    cpu_offload: False
+    every_n_steps: 1
+    
+
 solver:
     _target_: tinyedm.DeterministicSolver
     num_steps: 32
@@ -65,13 +72,6 @@ generate_callback:
     num_samples: 8
     img_shape: [3, 32, 32]
     every_n_epochs: 5
-
-ema:
-    enable: False
-    ema_length: 0.1
-    validate_original_weights: False
-    cpu_offload: False
-    every_n_steps: 2
 
 wandb:
     project: CIFAR10
