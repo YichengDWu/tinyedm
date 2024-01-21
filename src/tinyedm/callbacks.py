@@ -10,17 +10,6 @@ from pathlib import Path
 from PIL import Image
 
 
-class LogBestCkptCallback(Callback):
-    def __init__(self):
-        super().__init__()
-
-    @rank_zero_only
-    def on_train_epoch_start(self, trainer, pl_module):
-        trainer.logger.log_hyperparams(
-            {"best_model_path": trainer.checkpoint_callback.best_model_path}
-        )
-
-
 class GenerateCallback(Callback):
     def __init__(
         self,

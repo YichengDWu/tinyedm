@@ -3,7 +3,6 @@ from tinyedm import (
     EDM,
     GenerateCallback,
     UploadCheckpointCallback,
-    LogBestCkptCallback,
 )
 
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -36,7 +35,6 @@ def main(cfg: DictConfig) -> None:
     logger = WandbLogger()
 
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
-    logckptpath_callback = LogBestCkptCallback()
     generate_callback = GenerateCallback(
         solver=solver,
         std=datamodule.std,
@@ -47,7 +45,6 @@ def main(cfg: DictConfig) -> None:
     upload_callback = UploadCheckpointCallback()
     callbacks = [
         checkpoint_callback,
-        logckptpath_callback,
         generate_callback,
         upload_callback,
     ]
