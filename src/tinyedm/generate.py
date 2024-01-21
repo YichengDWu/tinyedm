@@ -58,9 +58,6 @@ def main():
         help="Use the exponential moving average of the weights",
     )
     parser.add_argument(
-        "--config_path", type=str, required=True, help="Path to the config file"
-    )
-    parser.add_argument(
         "--output_dir", type=str, required=True, help="Directory for output"
     )
     parser.add_argument(
