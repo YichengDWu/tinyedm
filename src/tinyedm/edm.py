@@ -229,14 +229,14 @@ class EDM(L.LightningModule):
                 self.val_mse(weight / uncertainty.exp(), denoised_image, clean_image)
                 + uncertainty_mean
             )
-           # self.log(
-          #      "val_loss", self.val_mse, prog_bar=True, on_epoch=True, on_step=False
-         #   )
+            self.log(
+                "val_loss", self.val_mse, prog_bar=True, on_epoch=True, on_step=False
+            )
     
         else:
             loss = self.val_mse(weight, denoised_image, clean_image)
             self.log(
-                "val_loss", self.val_mse, prog_bar=True
+                "val_loss", self.val_mse, prog_bar=True, on_epoch=True, on_step=False
             )
 
         return loss
