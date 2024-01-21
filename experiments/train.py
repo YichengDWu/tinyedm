@@ -11,7 +11,6 @@ import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 import hydra
 import wandb
-from tinyedm.ema import EMA
 from omegaconf import DictConfig, OmegaConf
 
 
