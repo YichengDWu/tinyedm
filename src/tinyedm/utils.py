@@ -26,6 +26,7 @@ def deinstantiate(obj):
 
     return {"_target_": class_name, **params}
 
+
 def swap_tensors(tensor1, tensor2):
     tmp = torch.empty_like(tensor1)
     tmp.copy_(tensor1)
