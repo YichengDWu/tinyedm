@@ -1,6 +1,5 @@
 import torch
 from tinyedm import (
-    EDM,
     GenerateCallback,
     UploadCheckpointCallback,
 )
