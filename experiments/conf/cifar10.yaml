@@ -68,7 +68,7 @@ checkpoint_callback:
     mode: min
     save_top_k: -1
     verbose: True
-    every_n_epochs: 500
+    every_n_epochs: $trainer.check_val_every_n_epoch
 
 generate_callback:
     num_samples: 8
