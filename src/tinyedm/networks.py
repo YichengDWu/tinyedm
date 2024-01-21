@@ -544,7 +544,7 @@ class Denoiser(nn.Module):
             cat_factor=decoder_cat_factor,
             head_dim=head_dim,
         )
-        
+
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.encoder_block_types = encoder_block_types

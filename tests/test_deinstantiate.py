@@ -4,6 +4,7 @@ from hydra.utils import instantiate
 from omegaconf import OmegaConf
 from torch import nn
 
+
 def test_deinstantiate():
     initialize(config_path="../experiments/conf", job_name="test")
     cfg = compose(config_name="cifar10")

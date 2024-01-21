@@ -4,7 +4,6 @@ from lightning.pytorch.callbacks import Callback, BasePredictionWriter
 from .edm import EDMSolver
 import torch
 from torchvision.utils import make_grid
-import wandb
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 from pathlib import Path
 from PIL import Image
@@ -65,6 +64,7 @@ class GenerateCallback(Callback):
                 )
 
             pl_module.train()
+
 
 class PreditionWriter(BasePredictionWriter):
     def __init__(

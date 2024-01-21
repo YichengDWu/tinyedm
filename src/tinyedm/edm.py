@@ -7,10 +7,11 @@ from torch.optim.lr_scheduler import LambdaLR, LinearLR, ConstantLR, SequentialL
 from .ema import EMA, EMAOptimizer
 from .utils import deinstantiate, swap_tensors
 from hydra.utils import instantiate
-from typing import Protocol, Any, Self, cast
+from typing_extensions import Protocol, Any, Self, cast
 import numpy as np
 import contextlib
 from lightning.pytorch.utilities.rank_zero import rank_zero_warn
+
 
 class EDMDiffuser(Protocol):
     """
@@ -28,22 +29,24 @@ class EDMEmbedding(Protocol):
     An embedding that takes in a noise level and an **optional** class label (guidance) and outputs an embedding
     that is then fed into the denoiser.
     """
+
     embedding_dim: int
     num_classes: int | None
-    
+
     def __call__(self, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
         ...
+
 
 class EDMDenoiser(Protocol):
     """
     A denoiser that takes in a noisy image, the noise level, and an embedding and outputs a denoised image.
 
     """
+
     sigma_data: float
 
     def __call__(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor) -> Tensor:
         ...
-
 
 
 class EDMSolver(Protocol):
@@ -151,7 +154,9 @@ class EDM(L.LightningModule):
         self.hparams.update(cfg)
 
     @classmethod
-    def load_from_checkpoint(cls, checkpoint_path, *, map_location=None, use_ema: bool=False, **kwargs: Any) -> Self:
+    def load_from_checkpoint(
+        cls, checkpoint_path, *, map_location=None, use_ema: bool = False, **kwargs: Any
+    ) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, **kwargs)
         model = instantiate(checkpoint["hyper_parameters"])
         model.use_ema = use_ema
@@ -161,17 +166,24 @@ class EDM(L.LightningModule):
             ema_params = checkpoint["optimizer_states"][0]["ema"]
             for param, ema_param in zip(model.parameters(), ema_params):
                 swap_tensors(param.data, ema_param)
-                
+
             print("EMA weights loaded.")
-            device = next((t for t in ema_params if isinstance(t, torch.Tensor)), torch.tensor(0)).device
-            model.to(device)             
+            device = next(
+                (t for t in ema_params if isinstance(t, torch.Tensor)), torch.tensor(0)
+            ).device
+            model.to(device)
         else:
             state_dict = checkpoint["state_dict"]
             if not state_dict:
-                rank_zero_warn(f"The state dict in {checkpoint_path!r} contains no parameters.")
+                rank_zero_warn(
+                    f"The state dict in {checkpoint_path!r} contains no parameters."
+                )
                 return model
 
-            device = next((t for t in state_dict.values() if isinstance(t, torch.Tensor)), torch.tensor(0)).device
+            device = next(
+                (t for t in state_dict.values() if isinstance(t, torch.Tensor)),
+                torch.tensor(0),
+            ).device
             model.to(device)
         return cast(Self, model)
 
@@ -190,7 +202,11 @@ class EDM(L.LightningModule):
                 + uncertainty_mean
             )
             self.log(
-                "train_loss", self.train_mse, prog_bar=True, on_epoch=True, on_step=False
+                "train_loss",
+                self.train_mse,
+                prog_bar=True,
+                on_epoch=True,
+                on_step=False,
             )
             self.log(
                 "uncertainty",
@@ -203,7 +219,11 @@ class EDM(L.LightningModule):
         else:
             loss = self.train_mse(weight, denoised_image, clean_image)
             self.log(
-                "train_loss", self.train_mse, prog_bar=True, on_epoch=True, on_step=False
+                "train_loss",
+                self.train_mse,
+                prog_bar=True,
+                on_epoch=True,
+                on_step=False,
             )
 
         self.log(
@@ -214,7 +234,7 @@ class EDM(L.LightningModule):
             on_step=False,
         )
         return loss
-    
+
     def validation_step(self, batch, batch_idx):
         clean_image, class_label = batch
         noisy_image, sigma = self.diffuser(clean_image)
@@ -232,7 +252,7 @@ class EDM(L.LightningModule):
             self.log(
                 "val_loss", self.val_mse, prog_bar=True, on_epoch=True, on_step=False
             )
-    
+
         else:
             loss = self.val_mse(weight, denoised_image, clean_image)
             self.log(
@@ -240,6 +260,7 @@ class EDM(L.LightningModule):
             )
 
         return loss
+
     def configure_optimizers(self):
         optimizer = optim.Adam(
             self.parameters(), lr=self.lr, betas=self.betas, fused=True
@@ -310,11 +331,9 @@ class EDM(L.LightningModule):
     @contextlib.contextmanager
     def swap_ema_weights(self, trainer: L.Trainer):
         optimizer = trainer.optimizers[0]
-                
+
         if not (self.use_ema and isinstance(optimizer, EMAOptimizer)):
-            raise ValueError(
-                "EMA is not used or the optimizer is not an EMAOptimizer."
-            )
+            raise ValueError("EMA is not used or the optimizer is not an EMAOptimizer.")
 
         optimizer.switch_main_parameter_weights()
         try:
