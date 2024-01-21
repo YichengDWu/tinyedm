@@ -7,6 +7,7 @@ trainer:
     accumulate_grad_batches: 1
     strategy: auto
     precision: bf16-mixed
+    val_check_interval: 500
 
 datamodule:
     _target_: tinyedm.datamodule.CIFAR10DataModule
@@ -63,10 +64,11 @@ solver:
 
 # callbacks
 checkpoint_callback:
-    monitor: train_loss 
+    monitor: val_loss 
     mode: min
-    save_top_k: 1
+    save_top_k: -1
     verbose: True
+    every_n_epochs: 500
 
 generate_callback:
     num_samples: 8

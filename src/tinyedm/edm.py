@@ -141,7 +141,8 @@ class EDM(L.LightningModule):
         self.sigma_data = sigma_data if sigma_data is not None else denoiser.sigma_data
         self.lr = lr
         self.betas = betas
-        self.mse = WeightedMeanSquaredError()
+        self.train_mse = WeightedMeanSquaredError()
+        self.val_mse = WeightedMeanSquaredError()
         self.save_config()
 
     def save_config(self):
@@ -153,6 +154,7 @@ class EDM(L.LightningModule):
     def load_from_checkpoint(cls, checkpoint_path, *, map_location=None, use_ema: bool=False, **kwargs: Any) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, **kwargs)
         model = instantiate(checkpoint["hyper_parameters"])
+        model.use_ema = use_ema
         assert isinstance(model, L.LightningModule)
 
         if use_ema:
@@ -184,11 +186,11 @@ class EDM(L.LightningModule):
             uncertainty = self.u(embedding.detach()).flatten()
             uncertainty_mean = uncertainty.mean()
             loss = (
-                self.mse(weight / uncertainty.exp(), denoised_image, clean_image)
+                self.train_mse(weight / uncertainty.exp(), denoised_image, clean_image)
                 + uncertainty_mean
             )
             self.log(
-                "train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False
+                "train_loss", self.train_mse, prog_bar=True, on_epoch=True, on_step=False
             )
             self.log(
                 "uncertainty",
@@ -199,9 +201,9 @@ class EDM(L.LightningModule):
             )
 
         else:
-            loss = self.mse(weight, denoised_image, clean_image)
+            loss = self.train_mse(weight, denoised_image, clean_image)
             self.log(
-                "train_loss", self.mse, prog_bar=True, on_epoch=True, on_step=False
+                "train_loss", self.train_mse, prog_bar=True, on_epoch=True, on_step=False
             )
 
         self.log(
@@ -212,7 +214,32 @@ class EDM(L.LightningModule):
             on_step=False,
         )
         return loss
+    
+    def validation_step(self, batch, batch_idx):
+        clean_image, class_label = batch
+        noisy_image, sigma = self.diffuser(clean_image)
+        embedding = self.embedding(sigma, class_label)
+        denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
+        weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
+        if self.u is not None:
+            uncertainty = self.u(embedding.detach()).flatten()
+            uncertainty_mean = uncertainty.mean()
+            loss = (
+                self.val_mse(weight / uncertainty.exp(), denoised_image, clean_image)
+                + uncertainty_mean
+            )
+           # self.log(
+          #      "val_loss", self.val_mse, prog_bar=True, on_epoch=True, on_step=False
+         #   )
+    
+        else:
+            loss = self.val_mse(weight, denoised_image, clean_image)
+            self.log(
+                "val_loss", self.val_mse, prog_bar=True
+            )
+
+        return loss
     def configure_optimizers(self):
         optimizer = optim.Adam(
             self.parameters(), lr=self.lr, betas=self.betas, fused=True
