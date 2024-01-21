@@ -69,7 +69,7 @@ checkpoint_callback:
     save_top_k: -1
     save_last: False
     verbose: True
-    every_n_epochs: $trainer.check_val_every_n_epoch
+    every_n_epochs: ${trainer.check_val_every_n_epoch}
 
 generate_callback:
     num_samples: 8
