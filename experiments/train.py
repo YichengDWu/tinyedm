@@ -1,8 +1,5 @@
 import torch
-from tinyedm import (
-    GenerateCallback,
-    UploadCheckpointCallback,
-)
+from tinyedm import GenerateCallback
 
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -30,7 +27,7 @@ def main(cfg: DictConfig) -> None:
 
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
     wandb.run.log_code(".")
-    logger = WandbLogger()
+    logger = WandbLogger(log_model="all")
 
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
     generate_callback = GenerateCallback(
@@ -40,11 +37,9 @@ def main(cfg: DictConfig) -> None:
         value_range=(0, 1),
         **cfg.generate_callback,
     )
-    upload_callback = UploadCheckpointCallback()
     callbacks = [
         checkpoint_callback,
         generate_callback,
-        upload_callback,
     ]
 
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
