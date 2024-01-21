@@ -1,10 +1,5 @@
 import torch
-from tinyedm import (
-    EDM,
-    GenerateCallback,
-    UploadCheckpointCallback,
-    LogBestCkptCallback,
-)
+from tinyedm import GenerateCallback
 
 from lightning.pytorch.callbacks import ModelCheckpoint
 
@@ -12,7 +7,6 @@ import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 import hydra
 import wandb
-from tinyedm.ema import EMA
 from omegaconf import DictConfig, OmegaConf
 
 
@@ -33,10 +27,9 @@ def main(cfg: DictConfig) -> None:
 
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
     wandb.run.log_code(".")
-    logger = WandbLogger()
+    logger = WandbLogger(log_model="all")
 
     checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
-    logckptpath_callback = LogBestCkptCallback()
     generate_callback = GenerateCallback(
         solver=solver,
         std=datamodule.std,
@@ -44,12 +37,9 @@ def main(cfg: DictConfig) -> None:
         value_range=(0, 1),
         **cfg.generate_callback,
     )
-    upload_callback = UploadCheckpointCallback()
     callbacks = [
         checkpoint_callback,
-        logckptpath_callback,
         generate_callback,
-        upload_callback,
     ]
 
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)

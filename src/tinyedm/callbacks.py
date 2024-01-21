@@ -1,24 +1,13 @@
-from typing import Sequence
+from typing import Dict, Sequence
+from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import Callback, BasePredictionWriter
 from .edm import EDMSolver
 import torch
 from torchvision.utils import make_grid
 import wandb
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
-from .ema import EMAOptimizer
 from pathlib import Path
 from PIL import Image
-
-
-class LogBestCkptCallback(Callback):
-    def __init__(self):
-        super().__init__()
-
-    @rank_zero_only
-    def on_train_epoch_start(self, trainer, pl_module):
-        trainer.logger.log_hyperparams(
-            {"best_model_path": trainer.checkpoint_callback.best_model_path}
-        )
 
 
 class GenerateCallback(Callback):
@@ -76,18 +65,6 @@ class GenerateCallback(Callback):
                 )
 
             pl_module.train()
-
-
-class UploadCheckpointCallback(Callback):
-    def __init__(self):
-        super().__init__()
-
-    def on_train_end(self, trainer, pl_module):
-        best_model_path = trainer.checkpoint_callback.best_model_path
-        artifact = wandb.Artifact("checkpoints", type="model")
-        artifact.add_file(best_model_path)
-        trainer.logger.experiment.log_artifact(artifact)
-
 
 class PreditionWriter(BasePredictionWriter):
     def __init__(
