@@ -70,8 +70,8 @@ callbacks:
         num_samples: 8
         img_shape: [3, 32, 32]
         every_n_epochs: 5
-        mean: 0.49139968, 0.48215841, 0.44653091
-        std: 0.24703223, 0.24348513, 0.26158784
+        mean: [0.49139968, 0.48215841, 0.44653091]
+        std: [0.24703223, 0.24348513, 0.26158784]
         solver:
             _target_: tinyedm.DeterministicSolver
             num_steps: 32
