@@ -3,11 +3,11 @@ seed: 42
 trainer:
     devices: -1
     accelerator: gpu
-    max_epochs: -1
+    max_epochs: 2000
     accumulate_grad_batches: 1
     strategy: auto
     precision: bf16-mixed
-    check_val_every_n_epoch: 100
+    check_val_every_n_epoch: 10
 
 datamodule:
     _target_: tinyedm.datamodule.CIFAR10DataModule
@@ -41,6 +41,7 @@ model:
         encoder_out_channels: [128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512]
         decoder_out_channels: [512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 128, 128, 128, 128]
         skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
+        dropout_rate: 0.1
 
     use_uncertainty: False
     lr: 0.01
@@ -52,29 +53,32 @@ model:
     validate_original_weights: False
     cpu_offload: False
     every_n_steps: 1
-    
 
-solver:
-    _target_: tinyedm.DeterministicSolver
-    num_steps: 32
-    sigma_min: 0.002
-    sigma_max: 80.0
-    rho: 7.0
-    dtype: float32
+callbacks:
+    checkpoint_callback:
+        _target_: lightning.callbacks.ModelCheckpoint
+        monitor: val_loss 
+        mode: min
+        save_top_k: 3
+        save_last: False
+        verbose: True
+        every_n_epochs: 100
+        save_on_train_epoch_end: False
 
-# callbacks
-checkpoint_callback:
-    monitor: val_loss 
-    mode: min
-    save_top_k: -1
-    save_last: False
-    verbose: True
-    every_n_epochs: ${trainer.check_val_every_n_epoch}
-
-generate_callback:
-    num_samples: 8
-    img_shape: [3, 32, 32]
-    every_n_epochs: 5
+    generate_callback:
+        _target_: tinyedm.callbacks.GenerateCallback
+        num_samples: 8
+        img_shape: [3, 32, 32]
+        every_n_epochs: 5
+        mean: 0.49139968, 0.48215841, 0.44653091
+        std: 0.24703223, 0.24348513, 0.26158784
+        solver:
+            _target_: tinyedm.DeterministicSolver
+            num_steps: 32
+            sigma_min: 0.002
+            sigma_max: 80.0
+            rho: 7.0
+            dtype: float32
 
 wandb:
     project: CIFAR10

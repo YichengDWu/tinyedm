@@ -28,20 +28,8 @@ def main(cfg: DictConfig) -> None:
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
     wandb.run.log_code(".")
     logger = WandbLogger(log_model="all")
-
-    checkpoint_callback = ModelCheckpoint(**cfg.checkpoint_callback)
-    generate_callback = GenerateCallback(
-        solver=solver,
-        std=datamodule.std,
-        mean=datamodule.mean,
-        value_range=(0, 1),
-        **cfg.generate_callback,
-    )
-    callbacks = [
-        checkpoint_callback,
-        generate_callback,
-    ]
-
+    
+    callbacks = hydra.utils.instantiate(cfg.callbacks) 
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
 
     logger.watch(model, **cfg.wandb_watch)
