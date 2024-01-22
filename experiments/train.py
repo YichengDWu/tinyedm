@@ -1,6 +1,4 @@
 import torch
-from tinyedm import GenerateCallback
-
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 import hydra
