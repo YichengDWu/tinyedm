@@ -32,12 +32,19 @@ class MNISTDataModule(AbstractDataModule):
         MNIST(self.data_dir, train=True, download=True, transform=self.transform)
         MNIST(self.data_dir, train=False, download=True, transform=self.transform)
 
-    def setup(self, stage):
-        mnist_full = MNIST(
-            self.data_dir, train=True, download=False, transform=self.transform
-        )
-        self.train_dataset, self.val_dataset = random_split(mnist_full, [55000, 5000])
-
+    def setup(self, stage=None):
+        if stage == "fit" or stage is None:
+            self.train_dataset = MNIST(
+                self.data_dir, train=True, download=False, transform=self.transform
+            )
+            self.val_dataset = MNIST(
+                self.data_dir, train=False, download=False, transform=self.transform
+            )
+        if stage == "test":
+            self.test_dataset = MNIST(
+                self.data_dir, train=False, download=False, transform=self.transform
+            )
+            
     @property
     def classes(self):
         return self.train_dataset.classes

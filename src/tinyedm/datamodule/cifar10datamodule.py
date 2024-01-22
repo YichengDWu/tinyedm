@@ -46,7 +46,7 @@ class CIFAR10DataModule(AbstractDataModule):
                 download=False,
                 transform=self.transform,
             )
-        if stage == "test" or stage is None:
+        if stage == "test":
             self.test_dataset = CIFAR10(
                 self.data_dir,
                 train=False,
