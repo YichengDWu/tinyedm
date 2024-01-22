@@ -23,7 +23,7 @@ def main(cfg: DictConfig) -> None:
     wandb.run.log_code(".")
     logger = WandbLogger(log_model="all")
     
-    callbacks = hydra.utils.instantiate(cfg.callbacks) 
+    callbacks = list(hydra.utils.instantiate(cfg.callbacks).values())
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
 
     logger.watch(model, **cfg.wandb_watch)
