@@ -88,3 +88,5 @@ wandb_watch:
     log_freq: 500
     log: all
 
+wandb_logger:
+    log_model: True

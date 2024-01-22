@@ -3,75 +3,81 @@ seed: 42
 trainer:
     devices: -1
     accelerator: gpu
-    max_epochs: -1
+    max_epochs: 2000
     accumulate_grad_batches: 1
     strategy: auto
     precision: bf16-mixed
+    check_val_every_n_epoch: 10
 
 datamodule:
     _target_: tinyedm.datamodule.MNISTDataModule
     batch_size: 128
-    num_workers: 16
+    num_workers: 8
     image_size: 28
     data_dir: datasets/mnist
 
-diffuser:
-    _target_: tinyedm.Diffuser
-    P_std: 1.2
-    P_mean: -1.2
-
-embedding:
-    _target_: tinyedm.Embedding
-    fourier_dim: 64
-    embedding_dim: 256
-    num_classes: 10
-
-denoiser:
-    _target_: tinyedm.Denoiser
-    in_channels: 1
-    out_channels: 1
-    sigma_data: 0.5
-    embedding_dim: ${embedding.embedding_dim}
-    encoder_block_types: ["EncA", "EncA", "EncA", "EncD", "EncA", "EncA", "EncA", "EncD", "EncA", "EncA", "EncA"]
-    decoder_block_types: ["DecA", "Dec", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA"]
-    encoder_out_channels: [128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512]
-    decoder_out_channels: [512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 128, 128, 128, 128]
-    skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
-
 
 model:
+    _target_: tinyedm.EDM
+    diffuser:
+        _target_: tinyedm.Diffuser
+        P_std: 1.2
+        P_mean: -1.2
+
+    embedding:
+        _target_: tinyedm.Embedding
+        fourier_dim: 64
+        embedding_dim: 256
+        num_classes: 10
+
+    denoiser:
+        _target_: tinyedm.Denoiser
+        in_channels: 1
+        out_channels: 1
+        sigma_data: 0.5
+        embedding_dim: ${model.embedding.embedding_dim}
+        encoder_block_types: ["Enc", "Enc", "Enc", "EncD", "EncA", "EncA", "EncA", "EncD", "EncA", "EncA", "EncA"]
+        decoder_block_types: ["DecA", "Dec", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA", "DecU", "Dec", "Dec", "Dec", "Dec"]
+        encoder_out_channels: [128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512]
+        decoder_out_channels: [512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 128, 128, 128, 128]
+        skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
+        dropout_rate: 0.1
+
     use_uncertainty: False
     lr: 0.01
     steady_steps: 500
     rampup_steps: 500
 
-
-solver:
-    _target_: tinyedm.DeterministicSolver
-    num_steps: 32
-    sigma_min: 0.002
-    sigma_max: 80.0
-    rho: 7.0
-    dtype: float32
-
-# callbacks
-checkpoint_callback:
-    monitor: train_loss 
-    mode: min
-    save_top_k: 1
-    verbose: True
-
-generate_callback:
-    num_samples: 8
-    img_shape: [1, 28, 28]
-    every_n_epochs: 5
-
-ema:
-    enable: False
+    use_ema: False
     ema_length: 0.1
     validate_original_weights: False
     cpu_offload: False
-    every_n_steps: 2
+    every_n_steps: 1
+
+callbacks:
+    checkpoint_callback:
+        _target_: lightning.pytorch.callbacks.ModelCheckpoint
+        monitor: val_loss 
+        mode: min
+        save_top_k: 3
+        save_last: False
+        verbose: True
+        every_n_epochs: 100
+        save_on_train_epoch_end: False
+
+    generate_callback:
+        _target_: tinyedm.callbacks.GenerateCallback
+        num_samples: 8
+        img_shape: [1, 28, 28]
+        every_n_epochs: 5
+        mean: [0.1307]
+        std: [0.3081]
+        solver:
+            _target_: tinyedm.DeterministicSolver
+            num_steps: 32
+            sigma_min: 0.002
+            sigma_max: 80.0
+            rho: 7.0
 
 wandb:
     project: MNIST
@@ -82,4 +88,5 @@ wandb_watch:
     log_freq: 500
     log: all
 
-compile: False
+wandb_logger:
+    log_model: True

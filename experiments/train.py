@@ -21,7 +21,7 @@ def main(cfg: DictConfig) -> None:
 
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
     wandb.run.log_code(".")
-    logger = WandbLogger(log_model="all")
+    logger = WandbLogger(cfg.wandb_logger)
     
     callbacks = list(hydra.utils.instantiate(cfg.callbacks).values())
     trainer = L.Trainer(logger=logger, callbacks=callbacks, **cfg.trainer)
