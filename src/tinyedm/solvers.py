@@ -16,13 +16,19 @@ class DeterministicSolver:
         sigma_min: float = 0.002,
         sigma_max: float = 80.0,
         rho: float = 7.0,
-        dtype: torch.dtype = torch.float32,
+        dtype: str | None = None,
     ):
         self.num_steps = num_steps
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.rho = rho
-        self.dtype = dtype  # The dtype of the solution
+        
+        if dtype is None or dtype == "float32":
+            self.dtype = torch.float32
+        elif dtype == "float16":
+            self.dtype = torch.float16
+        elif dtype == "float64":
+            self.dtype = torch.float64
 
         step_indices = torch.arange(num_steps, dtype=dtype)
         t_steps = (
