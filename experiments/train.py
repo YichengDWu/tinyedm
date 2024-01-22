@@ -23,8 +23,6 @@ def main(cfg: DictConfig) -> None:
     model = hydra.utils.instantiate(cfg.model)
     print(model)
 
-    solver = hydra.utils.instantiate(cfg.solver, dtype=torch.float32)
-
     wandb.init(config=OmegaConf.to_container(cfg, resolve=True), **cfg.wandb)
     wandb.run.log_code(".")
     logger = WandbLogger(log_model="all")
