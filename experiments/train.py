@@ -1,8 +1,6 @@
 import torch
 from tinyedm import GenerateCallback
 
-from lightning.pytorch.callbacks import ModelCheckpoint
-
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 import hydra
