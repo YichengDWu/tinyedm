@@ -84,8 +84,8 @@ def main(args):
     L.seed_everything(args.seed)
     
     out_dir = Path(args.out_dir)
-    feature_dir = out_dir / 'imagenet_latents'
-    label_dir = out_dir / 'imagenet_labels'
+    feature_dir = out_dir / 'latents'
+    label_dir = out_dir / 'labels'
     
     out_dir.mkdir(exist_ok=True)
     feature_dir.mkdir(parents=True, exist_ok=True)
