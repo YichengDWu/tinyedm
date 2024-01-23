@@ -55,5 +55,5 @@ class CIFAR10DataModule(AbstractDataModule):
             )
 
     @property
-    def classes(self):
+    def num_classes(self):
         return self.train_dataset.classes

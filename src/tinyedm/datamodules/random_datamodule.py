@@ -40,6 +40,3 @@ class RandomNoiseDataModule(AbstractDataModule):
             self.num_samples, self.image_size, self.num_classes
         )
 
-    @property
-    def classes(self):
-        return self.num_classes
