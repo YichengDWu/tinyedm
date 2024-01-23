@@ -10,7 +10,7 @@ trainer:
     check_val_every_n_epoch: 10
 
 datamodule:
-    _target_: tinyedm.datamodule.CIFAR10DataModule
+    _target_: tinyedm.datamodules.CIFAR10DataModule
     batch_size: 128
     num_workers: 8
     image_size: 32
