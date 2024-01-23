@@ -45,4 +45,3 @@ class MNISTDataModule(AbstractDataModule):
             self.test_dataset = MNIST(
                 self.data_dir, train=False, download=False, transform=self.transform
             )
-            

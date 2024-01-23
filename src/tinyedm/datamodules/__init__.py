@@ -3,4 +3,3 @@ from .cifar10datamodule import CIFAR10DataModule
 from .mnistdatamodule import MNISTDataModule
 from .random_datamodule import RandomNoiseDataModule
 from .imagenet_latents_datamodule import ImageNetLatentsDataModule
-

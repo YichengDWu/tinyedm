@@ -54,4 +54,3 @@ class CIFAR10DataModule(AbstractDataModule):
                 download=False,
                 transform=self.transform,
             )
-
