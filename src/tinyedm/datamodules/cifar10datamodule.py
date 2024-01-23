@@ -19,8 +19,9 @@ class CIFAR10DataModule(AbstractDataModule):
         self.std = (0.24703223, 0.24348513, 0.26158784)
         self.transform = v2.Compose(
             [
-                v2.Resize(image_size),
                 v2.ToImage(),
+                v2.ToDtype(torch.uint8, scale=True),
+                v2.Resize(image_size),
                 v2.ToDtype(torch.float32, scale=True),
                 v2.Normalize(
                     self.mean, map(lambda x: 2 * x, self.std)
@@ -54,6 +55,3 @@ class CIFAR10DataModule(AbstractDataModule):
                 transform=self.transform,
             )
 
-    @property
-    def num_classes(self):
-        return self.train_dataset.classes

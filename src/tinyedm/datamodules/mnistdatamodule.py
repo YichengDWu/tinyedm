@@ -19,8 +19,9 @@ class MNISTDataModule(AbstractDataModule):
         self.std = (0.3081,)
         self.transform = v2.Compose(
             [
-                v2.Resize(image_size),
                 v2.ToImage(),
+                v2.ToDtype(torch.uint8, scale=True),
+                v2.Resize(image_size),
                 v2.ToDtype(torch.float32, scale=True),
                 v2.Normalize(
                     self.mean, map(lambda x: 2 * x, self.std)
@@ -45,6 +46,3 @@ class MNISTDataModule(AbstractDataModule):
                 self.data_dir, train=False, download=False, transform=self.transform
             )
             
-    @property
-    def num_classes(self):
-        return self.train_dataset.classes

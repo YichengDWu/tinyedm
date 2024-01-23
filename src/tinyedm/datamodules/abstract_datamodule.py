@@ -53,3 +53,11 @@ class AbstractDataModule(LightningDataModule):
             pin_memory=True,
             shuffle=False,
         )
+        
+    @property
+    def num_classes(self) -> int:
+        return len(self.train_dataset.classes)
+    
+    @property
+    def classes(self) -> list:
+        return self.train_dataset.classes
