@@ -39,7 +39,3 @@ class RandomNoiseDataModule(AbstractDataModule):
         self.predict_dataset = RandomNoiseDataset(
             self.num_samples, self.image_size, self.num_classes
         )
-
-    @property
-    def classes(self):
-        return self.num_classes

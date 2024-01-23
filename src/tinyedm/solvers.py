@@ -22,7 +22,7 @@ class DeterministicSolver:
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.rho = rho
-        
+
         if dtype is None or dtype == "float32":
             self.dtype = torch.float32
         elif dtype == "float16":

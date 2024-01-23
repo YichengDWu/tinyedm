@@ -1,4 +1,4 @@
-from tinyedm.datamodule import RandomNoiseDataModule
+from tinyedm.datamodules import RandomNoiseDataModule
 from tinyedm import PreditionWriter, EDM
 import lightning as L
 from tinyedm import DeterministicSolver
