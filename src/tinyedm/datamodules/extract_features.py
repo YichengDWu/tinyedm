@@ -84,7 +84,7 @@ def main(args):
     L.seed_everything(args.seed)
     
     out_dir = Path(args.out_dir)
-    feature_dir = out_dir / 'imagenet_features'
+    feature_dir = out_dir / 'imagenet_latents'
     label_dir = out_dir / 'imagenet_labels'
     
     out_dir.mkdir(exist_ok=True)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--data-dir", type=str, required=True)
-    parser.add_argument("--out-dir", type=str, default="features")
+    parser.add_argument("--out-dir", type=str, default="latents")
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")
     parser.add_argument("--image-size", type=int, default=512)
     parser.add_argument("--num-workers", type=int, default=16)

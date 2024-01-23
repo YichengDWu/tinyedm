@@ -43,7 +43,7 @@ After downloading the ImageNet dataset, extract the files to a directory. When r
 
 For example:
 ```bash
-python src/tinyedm/datamodules/extract_features.py --data-dir ./datasets/imagenet/train --out-dir ./datasets/imagenet/features/train
+python src/tinyedm/datamodules/extract_latents.py --data-dir ./datasets/imagenet/train --out-dir ./datasets/imagenet/latents/train
 ```
 
 ## Generate
