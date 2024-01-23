@@ -24,13 +24,30 @@ cd tinyedm && pip install .
 
 ## Train
 
-```python
+```bash
 python experiments/train.py --config-name=mnist
 python experiments/train.py --config-name=cifar10
 ```
 
+## ImageNet Dataset
+
+To download the ImageNet dataset, follow these steps:
+1. Visit the ImageNet website: [http://www.image-net.org/](http://www.image-net.org/)
+2. Register for an account and request access for the dataset.
+3. Once approved, follow the instructions provided by ImageNet to download the dataset.
+
+
+## ImageNet Latents
+
+After downloading the ImageNet dataset, extract the files to a directory. When running the feature extraction script, use the `--data-dir` option to specify the path to this directory.
+
+For example:
+```bash
+python src/tinyedm/datamodules/extract_features.py --data-dir ./datasets/imagenet/train --out-dir ./datasets/imagenet/features/train
+```
+
 ## Generate
-```python
+```bash
 python /src/tinyedm/generate.py \
     --ckpt_path /path/to/checkpoint.ckpt \
     --use_ema \
