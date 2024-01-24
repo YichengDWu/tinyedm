@@ -47,6 +47,7 @@ model:
     lr: 0.01
     steady_steps: 500
     rampup_steps: 500
+    scheduler_interval: epoch
 
     use_ema: False
     ema_length: 0.1

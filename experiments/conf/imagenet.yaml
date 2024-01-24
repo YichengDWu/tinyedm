@@ -5,7 +5,7 @@ trainer:
     devices: -1
     accelerator: gpu
     max_epochs: 2000
-    accumulate_grad_batches: 11
+    accumulate_grad_batches: 3
     strategy: auto
     precision: bf16-mixed
     check_val_every_n_epoch: 5
@@ -41,8 +41,9 @@ model:
 
     use_uncertainty: False
     lr: 0.01
-    steady_steps: 500
-    rampup_steps: 1
+    steady_steps: 70000
+    rampup_steps: 2000
+    scheduler_interval: step
 
     use_ema: True
     ema_length: 0.13

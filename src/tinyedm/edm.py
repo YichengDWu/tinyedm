@@ -106,6 +106,7 @@ class EDM(L.LightningModule):
         use_uncertainty: bool,
         steady_steps: int,
         rampup_steps: int,
+        scheduler_interval: str,
         sigma_data: float | None = None,
         lr: float = 1e-4,
         betas: tuple[float, float] = (0.9, 0.999),
@@ -130,6 +131,7 @@ class EDM(L.LightningModule):
         self.use_uncertainty = use_uncertainty
         self.steady_steps = steady_steps
         self.rampup_steps = rampup_steps
+        self.scheduler_interval = scheduler_interval
         self.betas = betas
         self.ema_length = ema_length
         self.validate_original_weights = validate_original_weights
@@ -204,16 +206,10 @@ class EDM(L.LightningModule):
             self.log(
                 "train_loss",
                 self.train_mse,
-                prog_bar=True,
-                on_epoch=True,
-                on_step=False,
             )
             self.log(
                 "uncertainty",
                 uncertainty_mean,
-                prog_bar=False,
-                on_epoch=True,
-                on_step=False,
             )
 
         else:
@@ -221,17 +217,11 @@ class EDM(L.LightningModule):
             self.log(
                 "train_loss",
                 self.train_mse,
-                prog_bar=True,
-                on_epoch=True,
-                on_step=False,
             )
 
         self.log(
             "learning_rate",
             self.lr_schedulers().get_last_lr()[0],
-            prog_bar=False,
-            on_epoch=True,
-            on_step=False,
         )
         return loss
 
@@ -249,16 +239,10 @@ class EDM(L.LightningModule):
                 self.val_mse(weight / uncertainty.exp(), denoised_image, clean_image)
                 + uncertainty_mean
             )
-            self.log(
-                "val_loss", self.val_mse, prog_bar=True, on_epoch=True, on_step=False
-            )
-
         else:
             loss = self.val_mse(weight, denoised_image, clean_image)
-            self.log(
-                "val_loss", self.val_mse, prog_bar=True, on_epoch=True, on_step=False
-            )
 
+        self.log("val_loss", self.val_mse)
         return loss
 
     def configure_optimizers(self):
@@ -274,7 +258,7 @@ class EDM(L.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": lr_scheduler,
-                "interval": "epoch",
+                "interval": self.scheduler_interval,
                 "frequency": 1,
             },
         }
