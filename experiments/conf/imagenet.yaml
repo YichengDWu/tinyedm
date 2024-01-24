@@ -1,0 +1,74 @@
+
+seed: 42
+
+trainer:
+    devices: -1
+    accelerator: gpu
+    max_epochs: 2000
+    accumulate_grad_batches: 11
+    strategy: auto
+    precision: bf16-mixed
+    check_val_every_n_epoch: 5
+
+datamodule:
+    _target_: tinyedm.datamodules.ImageNetLatentsDataModule
+    batch_size: 176
+    num_workers: 16
+    image_size: 64
+    data_dir: datasets/imagenet/latents
+
+
+model:
+    _target_: tinyedm.EDM
+    diffuser:
+        _target_: tinyedm.Diffuser
+        P_std: 1.0
+        P_mean: -0.4
+
+    embedding:
+        _target_: tinyedm.Embedding
+        fourier_dim: 192
+        embedding_dim: 768
+        num_classes: 1000
+
+    denoiser:
+        _target_: tinyedm.Denoiser
+        in_channels: 4
+        out_channels: 4
+        sigma_data: 0.5
+        embedding_dim: ${model.embedding.embedding_dim}
+        dropout_rate: 0.0
+
+    use_uncertainty: False
+    lr: 0.01
+    steady_steps: 500
+    rampup_steps: 1
+
+    use_ema: True
+    ema_length: 0.13
+    validate_original_weights: False
+    cpu_offload: False
+    every_n_steps: 1
+
+callbacks:
+    checkpoint_callback:
+        _target_: lightning.pytorch.callbacks.ModelCheckpoint
+        monitor: val_loss
+        mode: min
+        save_top_k: 3
+        save_last: False
+        verbose: True
+        every_n_epochs: 50
+        save_on_train_epoch_end: False
+
+wandb:
+    project: ImageNet
+    resume: False
+    reinit: True
+
+wandb_watch:
+    log_freq: 500
+    log: all
+
+wandb_logger:
+    log_model: True
