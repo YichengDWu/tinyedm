@@ -113,7 +113,7 @@ def main(args):
     feature_dir = out_dir / "latents"
     label_dir = out_dir / "labels"
 
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     feature_dir.mkdir(parents=True, exist_ok=True)
     label_dir.mkdir(parents=True, exist_ok=True)
 
