@@ -14,10 +14,6 @@ class ImageNetLatentsDataset(Dataset):
         self.latents_files = sorted([f.name for f in self.latents_dir.glob("*.npy")])
         self.labels_files = sorted([f.name for f in self.labels_dir.glob("*.npy")])
 
-        assert len(self.latents_files) == len(
-            self.labels_files
-        ), "The number of feature files and label files should be the same"
-
     def __len__(self):
         return len(self.latents_files)
 
