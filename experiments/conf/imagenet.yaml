@@ -42,7 +42,7 @@ model:
     use_uncertainty: False
     lr: 0.01
     steady_steps: 70000
-    rampup_steps: 1
+    rampup_steps: 2000
     scheduler_interval: step
 
     use_ema: True
