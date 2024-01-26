@@ -11,15 +11,14 @@ class ImageNetLatentsDataset(Dataset):
         self.latents_dir = root / "latents"
         self.labels_dir = root / "labels"
 
-        self.latents_files = sorted([f.name for f in self.latents_dir.glob("*.npy")])
-        self.labels_files = sorted([f.name for f in self.labels_dir.glob("*.npy")])
+        self.num_files = len(list(self.latents_dir.glob("*.npy")))
 
     def __len__(self):
-        return len(self.latents_files)
+        return self.num_files
 
     def __getitem__(self, idx):
-        feature_file = self.latents_dir / self.latents_files[idx]
-        label_file = self.labels_dir / self.labels_files[idx]
+        feature_file = self.latents_dir / f"{idx}.npy"
+        label_file = self.labels_dir / f"{idx}.npy"
 
         feature = np.load(feature_file)
         label = np.load(label_file)

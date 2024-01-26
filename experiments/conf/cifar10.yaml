@@ -80,14 +80,12 @@ callbacks:
             sigma_max: 80.0
             rho: 7.0
 
-wandb:
-    project: CIFAR10
-    resume: True
-    reinit: False
-
 wandb_watch:
     log_freq: 500
     log: all
 
 wandb_logger:
     log_model: True
+    project: CIFAR10
+    resume: True
+    reinit: False

@@ -1,4 +1,3 @@
-
 seed: 42
 
 trainer:
@@ -62,10 +61,20 @@ callbacks:
         every_n_epochs: 50
         save_on_train_epoch_end: False
 
-wandb:
-    project: ImageNet
-    resume: False
-    reinit: True
+    generate_callback:
+        _target_: tinyedm.callbacks.LatentsGenerateCallback
+        num_samples_per_class: 8
+        num_classes: 10
+        img_shape: [4, 64, 64]
+        every_n_epochs: 1
+        mean: [5.81,3.25,0.12,-2.15]
+        std: [4.17,4.62,3.71,3.28]
+        solver:
+            _target_: tinyedm.DeterministicSolver
+            num_steps: 32
+            sigma_min: 0.002
+            sigma_max: 80.0
+            rho: 7.0
 
 wandb_watch:
     log_freq: 500
@@ -73,3 +82,6 @@ wandb_watch:
 
 wandb_logger:
     log_model: True
+    project: ImageNet
+    resume: False
+    reinit: True
