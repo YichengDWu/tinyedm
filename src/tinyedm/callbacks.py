@@ -90,7 +90,7 @@ class LatentsGenerateCallback(Callback):
         self.std = std
 
     @rank_zero_only
-    def on_train_start(self, trainer, pl_module):
+    def on_fit_start(self, trainer, pl_module):
         self.class_labels = torch.randint(
             0,
             trainer.datamodule.num_classes,
@@ -111,6 +111,7 @@ class LatentsGenerateCallback(Callback):
         self.vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(
             pl_module.device
         )
+        self.vae.eval()
 
     @rank_zero_only
     def on_train_epoch_end(self, trainer, pl_module):
