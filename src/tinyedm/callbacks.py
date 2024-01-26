@@ -7,7 +7,7 @@ from torchvision.utils import make_grid
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 from pathlib import Path
 from PIL import Image
-
+from diffusers.models import AutoencoderKL
 
 class GenerateCallback(Callback):
     def __init__(
