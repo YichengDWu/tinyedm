@@ -9,6 +9,7 @@ from pathlib import Path
 from PIL import Image
 from diffusers.models import AutoencoderKL
 
+
 class GenerateCallback(Callback):
     def __init__(
         self,
