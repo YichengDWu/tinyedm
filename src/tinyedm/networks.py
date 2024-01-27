@@ -148,17 +148,18 @@ class Embedding(nn.Module):
             self.class_embed = ClassEmbedding(num_classes, embedding_dim)
 
     def forward(self, sigmas, class_labels=None):
-        c_noise = sigmas.log() / 4
-        embedding = self.fourier_embed(c_noise)
-        embedding = self.sigma_embed(embedding)
+        with torch.cuda.amp.autocast(enabled=False):
+            c_noise = sigmas.log() / 4
+            embedding = self.fourier_embed(c_noise)
+            embedding = self.sigma_embed(embedding)
 
-        if class_labels is not None:
-            if self.class_embed is None:
-                raise ValueError("class_labels is not None, but num_classes is None. ")
-            class_embedding = self.class_embed(class_labels)
-            embedding = mp_add(embedding, class_embedding, self.add_factor)
+            if class_labels is not None:
+                if self.class_embed is None:
+                    raise ValueError("class_labels is not None, but num_classes is None. ")
+                class_embedding = self.class_embed(class_labels)
+                embedding = mp_add(embedding, class_embedding, self.add_factor)
 
-        out = mp_silu(embedding)
+            out = mp_silu(embedding)
         return out
 
 
@@ -241,7 +242,8 @@ class EncoderBlock(nn.Module):
         res = mp_silu(res)
         res = self.conv_3x3_1(res)
 
-        res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(-1)
+        with torch.cuda.amp.autocast(enabled=False):
+            res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(-1)
         res = mp_silu(res)
         res = self.dropout(res)
         res = self.conv_3x3_2(res)
@@ -302,7 +304,8 @@ class DecoderBlock(nn.Module):
         res = mp_silu(res)
         res = self.conv_3x3_1(res)
 
-        res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(-1)
+        with torch.cuda.amp.autocast(enabled=False):
+            res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(-1)
         res = mp_silu(res)
         res = self.dropout(res)
         res = self.conv_3x3_2(res)
