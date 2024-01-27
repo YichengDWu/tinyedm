@@ -6,7 +6,7 @@ trainer:
     max_epochs: 1000
     accumulate_grad_batches: 1
     strategy: auto
-    precision: bf16-mixed
+    precision: 16-mixed
     check_val_every_n_epoch: 10
 
 datamodule:
