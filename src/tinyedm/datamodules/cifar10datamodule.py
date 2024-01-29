@@ -23,6 +23,7 @@ class CIFAR10DataModule(AbstractDataModule):
                 v2.ToDtype(torch.uint8, scale=True),
                 v2.Resize(image_size, antialias=True),
                 v2.ToDtype(torch.float32, scale=True),
+                v2.RandomHorizontalFlip(),
                 v2.Normalize(
                     self.mean, map(lambda x: 2 * x, self.std)
                 ),  # normalize to have std of 0.5
