@@ -108,15 +108,14 @@ class LatentsGenerateCallback(Callback):
         self.std = torch.tensor(self.std, device=pl_module.device).view(1, -1, 1, 1)
         self.mean = torch.tensor(self.mean, device=pl_module.device).view(1, -1, 1, 1)
 
-        self.vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(
+        self.vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-ema").to(
             pl_module.device
         )
         self.vae.eval()
 
     @rank_zero_only
-    def on_train_epoch_end(self, trainer, pl_module):
+    def on_validation_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
-            pl_module.eval()
             with torch.no_grad():
                 if pl_module.use_ema:
                     with pl_module.swap_ema_weights(trainer):
@@ -131,8 +130,6 @@ class LatentsGenerateCallback(Callback):
                 trainer.logger.log_image(
                     key="Generated", images=[grid], step=trainer.current_epoch
                 )
-
-            pl_module.train()
 
 
 class PreditionWriter(BasePredictionWriter):
