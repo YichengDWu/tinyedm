@@ -297,18 +297,21 @@ class EDM(L.LightningModule):
     @staticmethod
     def get_lr_scheduler(optimizer, rampup_steps, steady_steps):
         schedulers = []
+        milestones = []
 
         if rampup_steps > 0:
             rampup_scheduler = LinearLR(
                 optimizer, start_factor=1e-8, total_iters=rampup_steps
             )
             schedulers.append(rampup_scheduler)
+            milestones.append(rampup_steps)
 
         if steady_steps > 0:
             constant_scheduler = ConstantLR(
                 optimizer, factor=1.0, total_iters=steady_steps
             )
             schedulers.append(constant_scheduler)
+            milestones.append(steady_steps)
 
         def lr_lambda(current_step):
             return 1 / np.sqrt(1 + current_step / steady_steps, dtype=np.float32)
@@ -319,7 +322,7 @@ class EDM(L.LightningModule):
         return SequentialLR(
             optimizer,
             schedulers=schedulers,
-            milestones=[rampup_steps, steady_steps + rampup_steps],
+            milestones=milestones,
         )
 
     @contextlib.contextmanager
