@@ -296,34 +296,20 @@ class EDM(L.LightningModule):
 
     @staticmethod
     def get_lr_scheduler(optimizer, rampup_steps, steady_steps):
-        schedulers = []
-        milestones = []
-
-        if rampup_steps > 0:
-            rampup_scheduler = LinearLR(
-                optimizer, start_factor=1e-8, total_iters=rampup_steps
-            )
-            schedulers.append(rampup_scheduler)
-            milestones.append(rampup_steps)
-
-        if steady_steps > 0:
-            constant_scheduler = ConstantLR(
-                optimizer, factor=1.0, total_iters=steady_steps
-            )
-            schedulers.append(constant_scheduler)
-            milestones.append(steady_steps)
-
         def lr_lambda(current_step):
-            return 1 / np.sqrt(1 + current_step / steady_steps, dtype=np.float32)
+            if current_step < rampup_steps:
+                # Linear ramp up phase
+                return 1e-8 + (1.0 - 1e-8) * current_step / rampup_steps
+            elif current_step < rampup_steps + steady_steps:
+                # Constant phase
+                return 1.0
+            else:
+                # Decay phase
+                decay_step = current_step - rampup_steps - steady_steps
+                return 1 / np.sqrt(1 + decay_step / steady_steps)
 
         decay_scheduler = LambdaLR(optimizer, lr_lambda)
-        schedulers.append(decay_scheduler)
-
-        return SequentialLR(
-            optimizer,
-            schedulers=schedulers,
-            milestones=milestones,
-        )
+        return decay_scheduler
 
     @contextlib.contextmanager
     def swap_ema_weights(self, trainer: L.Trainer):
