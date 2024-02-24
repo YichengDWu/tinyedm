@@ -144,7 +144,7 @@ class Embedding(nn.Module):
         self.fourier_embed = FourierEmbedding(fourier_dim)
         self.sigma_embed = Linear(fourier_dim, embedding_dim)
         self.class_embed = None
-        if num_classes is not None:
+        if num_classes is not None and num_classes != -1:
             self.class_embed = ClassEmbedding(num_classes, embedding_dim)
 
     def forward(self, sigmas, class_labels=None):
