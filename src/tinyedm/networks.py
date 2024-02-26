@@ -62,7 +62,7 @@ class Upsample(nn.Module):
         super().__init__()
 
     def forward(self, x):
-        return F.interpolate(x, scale_factor=2, mode="nearest")
+        return F.interpolate(x, scale_factor=2, mode="nearest-exact")
 
 
 def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
