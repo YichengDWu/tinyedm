@@ -450,9 +450,12 @@ def build_encoder_blocks(block_types, out_channels, **kwargs):
     return encoder_blocks
 
 
-def build_decoder_blocks(block_types, out_channels, skip_channels, **kwargs):
+def build_decoder_blocks(block_types, out_channels, skip_channels, cat_factor, **kwargs):
     decoder_blocks = nn.ModuleList()
     in_channel = out_channels[0]
+    depth = len(cat_factor)
+    layer_cnt = 0 
+    
     for block_type, out_channel, skip_channel in zip(
         block_types, out_channels, skip_channels
     ):
@@ -465,11 +468,13 @@ def build_decoder_blocks(block_types, out_channels, skip_channels, **kwargs):
                 skip_channels=skip_channel,
                 up=up,
                 attention=attention,
+                cat_factor = cat_factor ** (depth-1-layer_cnt)
                 **kwargs,
             )
         )
         in_channel = out_channel
-
+        layer_cnt += 1
+        
     return decoder_blocks
 
 
