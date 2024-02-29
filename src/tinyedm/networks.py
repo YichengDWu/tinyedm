@@ -468,7 +468,7 @@ def build_decoder_blocks(block_types, out_channels, skip_channels, cat_factor, *
                 skip_channels=skip_channel,
                 up=up,
                 attention=attention,
-                cat_factor = cat_factor ** (depth-1-layer_cnt)
+                cat_factor = 0.5 * cat_factor ** (depth-1-layer_cnt)
                 **kwargs,
             )
         )
