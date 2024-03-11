@@ -178,13 +178,13 @@ class CosineAttention(nn.Module):
     def forward(self, x):
         b, c, h, w = x.shape
         qkv = self.qkv_conv(x)  # (b, c, h, w) -> (b, 3*c, h, w)
-        qkv = pixel_norm(qkv)
         q, k, v = qkv.chunk(3, 1)  # (b, c, h*w)
 
         q = q.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
         k = k.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
         v = v.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
-
+        q, k, v = pixel_norm(q, dim=-1), pixel_norm(k, dim=-1), pixel_norm(v, dim=-1)
+        
         y = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
 
         y = y.transpose(2, 3).reshape(b, -1, h, w)
