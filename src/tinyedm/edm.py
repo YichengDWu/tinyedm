@@ -31,6 +31,7 @@ class EDMEmbedding(Protocol):
     """
 
     embedding_dim: int
+    fourier_dim: int
     num_classes: int | None
 
     def __call__(self, sigma: Tensor, class_label: Tensor | None = None) -> Tensor:
@@ -118,8 +119,8 @@ class EDM(L.LightningModule):
         super().__init__()
 
         assert (
-            hasattr(embedding, "embedding_dim") and embedding.embedding_dim is not None
-        ), "Embedding must have an embedding_dim attribute."
+            hasattr(embedding, "fourier_dim") and embedding.fourier_dim is not None
+        ), "Embedding must have an fourier_dim attribute."
 
         if use_ema and ema_length is None:
             raise ValueError("ema_length must be specified when use_ema is True.")
@@ -139,7 +140,7 @@ class EDM(L.LightningModule):
         self.cpu_offload = cpu_offload
 
         self.u = (
-            UncertaintyNet(embedding.embedding_dim, embedding.embedding_dim)
+            UncertaintyNet(embedding.fourier_dim, embedding.fourier_dim)
             if use_uncertainty
             else None
         )
@@ -192,12 +193,12 @@ class EDM(L.LightningModule):
     def training_step(self, batch, batch_idx):
         clean_image, class_label = batch
         noisy_image, sigma = self.diffuser(clean_image)
-        embedding = self.embedding(sigma, class_label)
+        fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
         weight = (sigma ** 2 + self.sigma_data ** 2) / (sigma * self.sigma_data) ** 2
         if self.u is not None:
-            uncertainty = self.u(embedding.detach()).flatten()
+            uncertainty = self.u(fourier_embedding).flatten()
             uncertainty_mean = uncertainty.mean()
             loss = (
                 self.train_mse(weight / uncertainty.exp(), denoised_image, clean_image)
@@ -224,12 +225,12 @@ class EDM(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         clean_image, class_label = batch
         noisy_image, sigma = self.diffuser(clean_image)
-        embedding = self.embedding(sigma, class_label)
+        fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
         weight = (sigma ** 2 + self.sigma_data ** 2) / (sigma * self.sigma_data) ** 2
         if self.u is not None:
-            uncertainty = self.u(embedding.detach()).flatten()
+            uncertainty = self.u(fourier_embedding).flatten()
             uncertainty_mean = uncertainty.mean()
             loss = (
                 self.val_mse(weight / uncertainty.exp(), denoised_image, clean_image)
@@ -274,7 +275,7 @@ class EDM(L.LightningModule):
     def forward(
         self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
     ) -> Tensor:
-        embedding = self.embedding(sigma, class_label)
+        fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
         return denoised_image
 
