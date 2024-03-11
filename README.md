@@ -50,7 +50,7 @@ python src/tinyedm/datamodules/extract_latents.py --data-dir ./datasets/imagenet
 
 ## Generate
 ```bash
-python /src/tinyedm/generate.py \
+python src/tinyedm/generate.py \
     --ckpt_path /path/to/checkpoint.ckpt \
     --use_ema \
     --output_dir /path/to/output \
