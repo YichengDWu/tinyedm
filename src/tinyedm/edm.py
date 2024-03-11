@@ -225,7 +225,7 @@ class EDM(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         clean_image, class_label = batch
         noisy_image, sigma = self.diffuser(clean_image)
-        embedding = self.embedding(sigma, class_label)
+        fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
         weight = (sigma ** 2 + self.sigma_data ** 2) / (sigma * self.sigma_data) ** 2
@@ -275,7 +275,7 @@ class EDM(L.LightningModule):
     def forward(
         self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
     ) -> Tensor:
-        embedding = self.embedding(sigma, class_label)
+        fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
         return denoised_image
 
