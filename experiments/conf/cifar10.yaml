@@ -11,7 +11,7 @@ trainer:
 
 datamodule:
     _target_: tinyedm.datamodules.CIFAR10DataModule
-    batch_size: 128
+    batch_size: 256
     num_workers: 8
     image_size: 32
     data_dir: datasets/cifar10
@@ -44,12 +44,12 @@ model:
         dropout_rate: 0.0
 
     use_uncertainty: True
-    lr: 0.01
-    steady_steps: 500
-    rampup_steps: 500
+    lr: 0.02
+    steady_steps: 200
+    rampup_steps: 200
     scheduler_interval: epoch
 
-    use_ema: False
+    use_ema: True
     ema_length: 0.04
     validate_original_weights: False
     cpu_offload: False
