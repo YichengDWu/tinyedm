@@ -30,8 +30,12 @@ class RandomNoiseDataModule(AbstractDataModule):
         super().__init__(None, batch_size, num_workers)
         self.image_size = image_size
         self.num_samples = num_samples
-        self.num_classes = num_classes
+        self._num_classes = num_classes
 
+    @property
+    def num_classes(self) -> int:
+        return self._num_classes
+    
     def prepare_data(self):
         pass
 
