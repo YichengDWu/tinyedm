@@ -66,7 +66,7 @@ class Upsample(nn.Module):
 
 
 def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
-    return x / (torch.sqrt(torch.mean(x**2, dim=dim, keepdim=True) + eps))
+    return x / (torch.sqrt(torch.mean(x ** 2, dim=dim, keepdim=True) + eps))
 
 
 def mp_silu(x: Tensor) -> Tensor:
@@ -74,13 +74,13 @@ def mp_silu(x: Tensor) -> Tensor:
 
 
 def mp_add(a: Tensor, b: Tensor, t: float = 0.3) -> Tensor:
-    scale = np.sqrt(t**2 + (1 - t) ** 2, dtype=np.float32)
+    scale = np.sqrt(t ** 2 + (1 - t) ** 2, dtype=np.float32)
     return ((1 - t) * a + t * b) / scale
 
 
 def mp_cat(a: Tensor, b: Tensor, t: float = 0.5) -> Tensor:
     N_a, N_b = a[0].numel(), b[0].numel()
-    scale = np.sqrt((N_a + N_b) / (t**2 + (1 - t) ** 2), dtype=np.float32)
+    scale = np.sqrt((N_a + N_b) / (t ** 2 + (1 - t) ** 2), dtype=np.float32)
     out = torch.cat(
         [
             (1 - t) / np.sqrt(N_a, dtype=np.float32) * a,
@@ -155,7 +155,9 @@ class Embedding(nn.Module):
 
             if class_labels is not None:
                 if self.class_embed is None:
-                    raise ValueError("class_labels is not None, but num_classes is None. ")
+                    raise ValueError(
+                        "class_labels is not None, but num_classes is None. "
+                    )
                 class_embedding = self.class_embed(class_labels)
                 embedding = mp_add(embedding, class_embedding, self.add_factor)
 
@@ -164,35 +166,31 @@ class Embedding(nn.Module):
 
 
 class CosineAttention(nn.Module):
-    def __init__(self, embed_dimension: int, head_dim: int = 64):
+    def __init__(self, embedding_dim: int, num_heads):
         super().__init__()
-        assert embed_dimension % head_dim == 0
-        self.head_dim = head_dim
-        self.num_heads = embed_dimension // head_dim
-        self.embed_dimension = embed_dimension
-        self.c_attn = Conv2d(embed_dimension, 3 * embed_dimension, 1)
-        self.c_proj = Conv2d(embed_dimension, embed_dimension, 1)
+        assert embedding_dim % num_heads == 0
+        self.num_heads = num_heads
+        self.head_dim = embedding_dim // num_heads
+        self.embedding_dim = embedding_dim
+        self.qkv_conv = Conv2d(embedding_dim, 3 * embedding_dim, 1)
+        self.out_conv = Conv2d(embedding_dim, embedding_dim, 1)
 
     def forward(self, x):
-        input = x
         b, c, h, w = x.shape
-        x_proj = self.c_attn(x)  # (b, c, h, w) -> (b, 3*c, h, w)
-        x_proj = x_proj.view(b, -1, h * w).transpose(1, 2)  # (b, h*w, 3*c)
+        qkv = self.qkv_conv(x)  # (b, c, h, w) -> (b, 3*c, h, w)
+        qkv = pixel_norm(qkv)
+        q, k, v = qkv.chunk(3, 1)  # (b, c, h*w)
 
-        q, k, v = x_proj.chunk(3, -1)
-        q = q.view(b, -1, self.num_heads, self.head_dim).transpose(
-            1, 2
-        )  # (b, num_heads, h*w, head_dim)
-        k = k.view(b, -1, self.num_heads, self.head_dim).transpose(1, 2)
-        v = v.view(b, -1, self.num_heads, self.head_dim).transpose(1, 2)
-        q, k, v = pixel_norm(q), pixel_norm(k), pixel_norm(v)
+        q = q.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
+        k = k.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
+        v = v.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
 
-        res = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
+        y = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
 
-        res = res.transpose(-1, -2).reshape(b, -1, h, w)
-        res = self.c_proj(res)
+        y = y.transpose(2, 3).reshape(b, -1, h, w)
+        y = self.out_conv(y)
 
-        out = mp_add(input, res)
+        out = mp_add(x, y)
         return out
 
 
@@ -204,7 +202,7 @@ class EncoderBlock(nn.Module):
         embedding_dim: int,
         down: bool,
         attention: bool,
-        head_dim: int = 64,
+        num_heads: int = 4,
         dropout_rate: float = 0.0,
         add_factor: float = 0.3,
     ):
@@ -225,7 +223,7 @@ class EncoderBlock(nn.Module):
         self.conv_3x3_2 = Conv2d(out_channels, out_channels, 3)
         self.dropout = nn.Dropout(self.dropout_rate)
         self.attention = (
-            CosineAttention(out_channels, head_dim) if attention else nn.Identity()
+            CosineAttention(out_channels, num_heads) if attention else nn.Identity()
         )
 
         # embedding layer
@@ -243,7 +241,9 @@ class EncoderBlock(nn.Module):
         res = self.conv_3x3_1(res)
 
         with torch.cuda.amp.autocast(enabled=False):
-            res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(-1)
+            res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(
+                -1
+            )
         res = mp_silu(res)
         res = self.dropout(res)
         res = self.conv_3x3_2(res)
@@ -261,7 +261,7 @@ class DecoderBlock(nn.Module):
         embedding_dim: int,
         up: bool,
         attention: bool,
-        head_dim: int = 64,
+        num_heads: int = 4,
         skip_channels: int = 0,
         dropout_rate: float = 0.0,
         add_factor: float = 0.3,
@@ -285,7 +285,7 @@ class DecoderBlock(nn.Module):
         self.conv_3x3_2 = Conv2d(out_channels, out_channels, 3)
         self.dropout = nn.Dropout(dropout_rate)
         self.attention = (
-            CosineAttention(out_channels, head_dim) if attention else nn.Identity()
+            CosineAttention(out_channels, num_heads) if attention else nn.Identity()
         )
 
         # embedding layer
@@ -305,7 +305,9 @@ class DecoderBlock(nn.Module):
         res = self.conv_3x3_1(res)
 
         with torch.cuda.amp.autocast(enabled=False):
-            res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(-1)
+            res = res * (self.embed(embedding) * self.gain + 1).unsqueeze(-1).unsqueeze(
+                -1
+            )
         res = mp_silu(res)
         res = self.dropout(res)
         res = self.conv_3x3_2(res)
@@ -489,17 +491,17 @@ class Denoiser(nn.Module):
         decoder_add_factor: float = 0.3,
         decoder_cat_factor: float = 0.5,
         embedding_dim: int = 768,
-        head_dim: int = 64,
+        num_heads: int = 4,
     ):
         super().__init__()
-        assert (
-            len(encoder_block_types) == len(encoder_out_channels)
+        assert len(encoder_block_types) == len(
+            encoder_out_channels
         ), f"encoder_block_types and encoder_out_channels must have the same length, got {len(encoder_block_types)} and {len(encoder_out_channels)}"
-        assert (
-            len(decoder_block_types) == len(decoder_out_channels)
+        assert len(decoder_block_types) == len(
+            decoder_out_channels
         ), f"decoder_block_types and decoder_out_channels must have the same length, got {len(decoder_block_types)} and {len(decoder_out_channels)}"
-        assert (
-            len(skip_connections) == len(decoder_out_channels)
+        assert len(skip_connections) == len(
+            decoder_out_channels
         ), f"skip_connections must have the same length as decoder_out_channels, got {len(skip_connections)} and {len(decoder_out_channels)}"
 
         (
@@ -530,7 +532,7 @@ class Denoiser(nn.Module):
             embedding_dim=embedding_dim,
             dropout_rate=dropout_rate,
             add_factor=encoder_add_factor,
-            head_dim=head_dim,
+            num_heads=num_heads,
         )
 
         skip_channels = get_skip_channels(
@@ -545,7 +547,7 @@ class Denoiser(nn.Module):
             dropout_rate=dropout_rate,
             add_factor=decoder_add_factor,
             cat_factor=decoder_cat_factor,
-            head_dim=head_dim,
+            num_heads=num_heads,
         )
 
         self.in_channels = in_channels
@@ -561,7 +563,7 @@ class Denoiser(nn.Module):
         self.decoder_add_factor = decoder_add_factor
         self.decoder_cat_factor = decoder_cat_factor
         self.embedding_dim = embedding_dim
-        self.head_dim = head_dim
+        self.num_heads = num_heads
 
     def forward(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor):
         if sigma.ndim == 0:
@@ -570,9 +572,9 @@ class Denoiser(nn.Module):
             )
 
         sigma = sigma.view(-1, 1, 1, 1)
-        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
-        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
-        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
+        c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
+        c_out = sigma * self.sigma_data / (sigma ** 2 + self.sigma_data ** 2).sqrt()
+        c_in = 1 / (self.sigma_data ** 2 + sigma ** 2).sqrt()
 
         # Input block
         x = c_in * noisy_image
@@ -634,9 +636,9 @@ class DenoiserWrapper(nn.Module):
                 noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
             )
         sigma = sigma.view(-1, 1, 1, 1)
-        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
-        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
-        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
+        c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
+        c_out = sigma * self.sigma_data / (sigma ** 2 + self.sigma_data ** 2).sqrt()
+        c_in = 1 / (self.sigma_data ** 2 + sigma ** 2).sqrt()
         c_noise = sigma.log() / 4
 
         F = self.net(c_in * noisy_image, c_noise.flatten(), embedding)

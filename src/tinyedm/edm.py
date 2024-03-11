@@ -195,7 +195,7 @@ class EDM(L.LightningModule):
         embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
-        weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
+        weight = (sigma ** 2 + self.sigma_data ** 2) / (sigma * self.sigma_data) ** 2
         if self.u is not None:
             uncertainty = self.u(embedding.detach()).flatten()
             uncertainty_mean = uncertainty.mean()
@@ -204,24 +204,20 @@ class EDM(L.LightningModule):
                 + uncertainty_mean
             )
             self.log(
-                "train_loss",
-                self.train_mse,
+                "train_loss", self.train_mse,
             )
             self.log(
-                "uncertainty",
-                uncertainty_mean,
+                "uncertainty", uncertainty_mean,
             )
 
         else:
             loss = self.train_mse(weight, denoised_image, clean_image)
             self.log(
-                "train_loss",
-                self.train_mse,
+                "train_loss", self.train_mse,
             )
 
         self.log(
-            "learning_rate",
-            self.lr_schedulers().get_last_lr()[0],
+            "learning_rate", self.lr_schedulers().get_last_lr()[0],
         )
         return loss
 
@@ -231,7 +227,7 @@ class EDM(L.LightningModule):
         embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
 
-        weight = (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
+        weight = (sigma ** 2 + self.sigma_data ** 2) / (sigma * self.sigma_data) ** 2
         if self.u is not None:
             uncertainty = self.u(embedding.detach()).flatten()
             uncertainty_mean = uncertainty.mean()

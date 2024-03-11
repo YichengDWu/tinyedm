@@ -37,21 +37,12 @@ class CIFAR10DataModule(AbstractDataModule):
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
             self.train_dataset = CIFAR10(
-                self.data_dir,
-                train=True,
-                download=False,
-                transform=self.transform,
+                self.data_dir, train=True, download=False, transform=self.transform,
             )
             self.val_dataset = CIFAR10(
-                self.data_dir,
-                train=False,
-                download=False,
-                transform=self.transform,
+                self.data_dir, train=False, download=False, transform=self.transform,
             )
         if stage == "test":
             self.test_dataset = CIFAR10(
-                self.data_dir,
-                train=False,
-                download=False,
-                transform=self.transform,
+                self.data_dir, train=False, download=False, transform=self.transform,
             )

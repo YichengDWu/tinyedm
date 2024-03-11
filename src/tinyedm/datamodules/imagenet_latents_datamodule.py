@@ -31,11 +31,7 @@ class ImageNetLatentsDataset(Dataset):
 
 class ImageNetLatentsDataModule(AbstractDataModule):
     def __init__(
-        self,
-        data_dir,
-        image_size,
-        batch_size,
-        num_workers,
+        self, data_dir, image_size, batch_size, num_workers,
     ):
         super().__init__(data_dir, batch_size, num_workers)
         self.data_dir = Path(data_dir)
@@ -46,12 +42,8 @@ class ImageNetLatentsDataModule(AbstractDataModule):
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            self.train_dataset = ImageNetLatentsDataset(
-                self.data_dir / "train",
-            )
-            self.val_dataset = ImageNetLatentsDataset(
-                self.data_dir / "val",
-            )
+            self.train_dataset = ImageNetLatentsDataset(self.data_dir / "train",)
+            self.val_dataset = ImageNetLatentsDataset(self.data_dir / "val",)
 
     @property
     def num_classes(self) -> int:
