@@ -54,7 +54,7 @@ python /src/tinyedm/generate.py \
     --ckpt_path /path/to/checkpoint.ckpt \
     --use_ema \
     --output_dir /path/to/output \
-    --num_samples 5000 \
+    --num_samples 50000 \
     --image_size 32 \
     --num_classes 10 \
     --batch_size 128 \
