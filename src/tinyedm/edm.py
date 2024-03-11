@@ -205,7 +205,7 @@ class EDM(L.LightningModule):
                 + uncertainty_mean
             )
             self.log(
-                "train_loss", self.train_mse,
+                "train_loss", self.train_mse, prog_bar=True,
             )
             self.log(
                 "uncertainty", uncertainty_mean,
@@ -214,7 +214,7 @@ class EDM(L.LightningModule):
         else:
             loss = self.train_mse(weight, denoised_image, clean_image)
             self.log(
-                "train_loss", self.train_mse,
+                "train_loss", self.train_mse, prog_bar=True,
             )
 
         self.log(
