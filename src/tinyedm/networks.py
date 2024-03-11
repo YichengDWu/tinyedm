@@ -150,8 +150,8 @@ class Embedding(nn.Module):
     def forward(self, sigmas, class_labels=None):
         with torch.cuda.amp.autocast(enabled=False):
             c_noise = sigmas.log() / 4
-            embedding = self.fourier_embed(c_noise)
-            embedding = self.sigma_embed(embedding)
+            fourier_embedding = self.fourier_embed(c_noise)
+            embedding = self.sigma_embed(fourier_embedding)
 
             if class_labels is not None:
                 if self.class_embed is None:
@@ -162,7 +162,7 @@ class Embedding(nn.Module):
                 embedding = mp_add(embedding, class_embedding, self.add_factor)
 
             out = mp_silu(embedding)
-        return out
+        return fourier_embedding, out
 
 
 class CosineAttention(nn.Module):
