@@ -29,7 +29,7 @@ from .utils import swap_tensors
 
 
 def sigma_rel_to_gamma(sigma_rel):
-    t = sigma_rel**-2
+    t = sigma_rel ** -2
     gamma = np.roots([1, 7, 16 - t, 12 - t]).real.max()
     return gamma
 
@@ -138,9 +138,7 @@ def ema_update(
     """
     torch._foreach_mul_(ema_model_tuple, decay)
     torch._foreach_add_(
-        ema_model_tuple,
-        current_model_tuple,
-        alpha=(1.0 - decay),
+        ema_model_tuple, current_model_tuple, alpha=(1.0 - decay),
     )
 
 
@@ -290,12 +288,7 @@ class EMAOptimizer(torch.optim.Optimizer):
         if self.device.type == "cpu":
             self.thread = threading.Thread(
                 target=run_ema_update_cpu,
-                args=(
-                    self.ema_params,
-                    current_model_state,
-                    decay,
-                    self.stream,
-                ),
+                args=(self.ema_params, current_model_state, decay, self.stream,),
             )
             self.thread.start()
 
