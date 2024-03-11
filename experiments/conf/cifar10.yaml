@@ -41,9 +41,9 @@ model:
         encoder_out_channels: [128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512]
         decoder_out_channels: [512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 128, 128, 128, 128]
         skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
-        dropout_rate: 0.1
+        dropout_rate: 0.0
 
-    use_uncertainty: False
+    use_uncertainty: True
     lr: 0.01
     steady_steps: 500
     rampup_steps: 500
