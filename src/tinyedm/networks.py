@@ -266,7 +266,7 @@ class DecoderBlock(nn.Module):
         super().__init__()
 
         self.add_factor = add_factor
-        self.cat_factor = Scalelong(skip_channels)
+        self.cat_factor = Scalelong(skip_channels) if skip_channels > 0 else None
 
         self.resample = Upsample() if up else nn.Identity()
 
