@@ -78,19 +78,6 @@ def mp_add(a: Tensor, b: Tensor, t: float = 0.3) -> Tensor:
     return ((1 - t) * a + t * b) / scale
 
 
-def mp_cat(a: Tensor, b: Tensor, t: float = 0.5) -> Tensor:
-    N_a, N_b = a[0].numel(), b[0].numel()
-    scale = np.sqrt((N_a + N_b) / (t ** 2 + (1 - t) ** 2), dtype=np.float32)
-    out = torch.cat(
-        [
-            (1 - t) / np.sqrt(N_a, dtype=np.float32) * a,
-            t / np.sqrt(N_b, dtype=np.float32) * b,
-        ],
-        dim=1,
-    )
-    return out * scale
-
-
 class UncertaintyNet(nn.Module):
     def __init__(self, in_features: int, hidden_features: int):
         super().__init__()
@@ -103,6 +90,21 @@ class UncertaintyNet(nn.Module):
         x = mp_silu(self.linear1(x))
         x = self.linear2(x)
         return x
+
+
+class ScaleLong(nn.Module):
+    def __init__(self, dim, r=16):
+        super(ScaleLong, self).__init__()
+        self.layer1 = Conv2d(dim + 1, int(dim // r), 1)
+        self.layer2 = Conv2d(int(dim // r), dim, 1)
+
+    def forward(self, inp):
+        ones_tensor = torch.ones_like(inp[:, 0:1, :, :])
+        inp = torch.cat((inp, ones_tensor), dim=1)
+        gain = F.sigmoid(
+            self.layer2(mp_silu(self.layer1(torch.mean(inp, dim=[2, 3], keepdim=True))))
+        )
+        return gain
 
 
 class ClassEmbedding(nn.Module):
@@ -184,7 +186,7 @@ class CosineAttention(nn.Module):
         k = k.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
         v = v.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
         q, k, v = pixel_norm(q, dim=-1), pixel_norm(k, dim=-1), pixel_norm(v, dim=-1)
-        
+
         y = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
 
         y = y.transpose(2, 3).reshape(b, -1, h, w)
@@ -265,12 +267,11 @@ class DecoderBlock(nn.Module):
         skip_channels: int = 0,
         dropout_rate: float = 0.0,
         add_factor: float = 0.3,
-        cat_factor: float = 0.5,
     ):
         super().__init__()
 
         self.add_factor = add_factor
-        self.cat_factor = cat_factor
+        self.cat_factor = ScaleLong(skip_channels) if skip_channels > 0 else None
 
         self.resample = Upsample() if up else nn.Identity()
 
@@ -296,7 +297,7 @@ class DecoderBlock(nn.Module):
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
     ) -> Tensor:
         if skip is not None:
-            input = mp_cat(input, skip, self.cat_factor)
+            input = torch.cat((input, skip * self.cat_factor(skip)), dim=1)
         x = self.resample(input)
         res = x
         x = self.conv_1x1(x)
@@ -489,7 +490,6 @@ class Denoiser(nn.Module):
         sigma_data: float = 0.5,
         encoder_add_factor: float = 0.3,
         decoder_add_factor: float = 0.3,
-        decoder_cat_factor: float = 0.5,
         embedding_dim: int = 768,
         num_heads: int = 4,
     ):
@@ -546,7 +546,6 @@ class Denoiser(nn.Module):
             embedding_dim=embedding_dim,
             dropout_rate=dropout_rate,
             add_factor=decoder_add_factor,
-            cat_factor=decoder_cat_factor,
             num_heads=num_heads,
         )
 
@@ -561,7 +560,6 @@ class Denoiser(nn.Module):
         self.sigma_data = sigma_data
         self.encoder_add_factor = encoder_add_factor
         self.decoder_add_factor = decoder_add_factor
-        self.decoder_cat_factor = decoder_cat_factor
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
 
