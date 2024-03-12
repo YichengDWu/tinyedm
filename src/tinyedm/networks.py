@@ -77,20 +77,6 @@ def mp_add(a: Tensor, b: Tensor, t: float = 0.3) -> Tensor:
     scale = np.sqrt(t ** 2 + (1 - t) ** 2, dtype=np.float32)
     return ((1 - t) * a + t * b) / scale
 
-
-def mp_cat(a: Tensor, b: Tensor, t: Tensor) -> Tensor:
-    N_a, N_b = a[0].numel(), b[0].numel()
-    scale = torch.sqrt((N_a + N_b) / (t ** 2 + (1 - t) ** 2))
-    out = torch.cat(
-        [
-            (1 - t) / np.sqrt(N_a, dtype=np.float32) * a,
-            t / np.sqrt(N_b, dtype=np.float32) * b,
-        ],
-        dim=1,
-    )
-    return out * scale
-
-
 class UncertaintyNet(nn.Module):
     def __init__(self, in_features: int, hidden_features: int):
         super().__init__()
@@ -306,7 +292,7 @@ class DecoderBlock(nn.Module):
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
     ) -> Tensor:
         if skip is not None:
-            input = mp_cat(input, skip, self.cat_factor(skip))
+            input = torch.cat(input, skip * self.cat_factor(skip), dim=1)
         x = self.resample(input)
         res = x
         x = self.conv_1x1(x)
