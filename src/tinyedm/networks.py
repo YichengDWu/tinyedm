@@ -104,7 +104,18 @@ class UncertaintyNet(nn.Module):
         x = self.linear2(x)
         return x
 
+class Scalelong(nn.Module):
+    def __init__(self, dim, r=16):
+        super(Scalelong, self).__init__()
+        self.layer1 = Conv2d(dim, int(dim // r), 1)
+        self.layer2 = Conv2d(int(dim // r), dim, 1)
 
+    def forward(self, inp):
+        gain = F.sigmoid(
+            self.layer2(mp_silu(self.layer1(torch.mean(inp, dim=[2, 3], keepdim=True))))
+        )
+        return gain
+    
 class ClassEmbedding(nn.Module):
     def __init__(self, num_embeddings, embedding_dim):
         super().__init__()
@@ -265,12 +276,11 @@ class DecoderBlock(nn.Module):
         skip_channels: int = 0,
         dropout_rate: float = 0.0,
         add_factor: float = 0.3,
-        cat_factor: float = 0.5,
     ):
         super().__init__()
 
         self.add_factor = add_factor
-        self.cat_factor = cat_factor
+        self.cat_factor = Scalelong(skip_channels)
 
         self.resample = Upsample() if up else nn.Identity()
 
@@ -296,7 +306,7 @@ class DecoderBlock(nn.Module):
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
     ) -> Tensor:
         if skip is not None:
-            input = mp_cat(input, skip, self.cat_factor)
+            input = mp_cat(input, skip, self.cat_factor(skip))
         x = self.resample(input)
         res = x
         x = self.conv_1x1(x)
@@ -489,7 +499,6 @@ class Denoiser(nn.Module):
         sigma_data: float = 0.5,
         encoder_add_factor: float = 0.3,
         decoder_add_factor: float = 0.3,
-        decoder_cat_factor: float = 0.5,
         embedding_dim: int = 768,
         num_heads: int = 4,
     ):
@@ -546,7 +555,6 @@ class Denoiser(nn.Module):
             embedding_dim=embedding_dim,
             dropout_rate=dropout_rate,
             add_factor=decoder_add_factor,
-            cat_factor=decoder_cat_factor,
             num_heads=num_heads,
         )
 
@@ -561,7 +569,6 @@ class Denoiser(nn.Module):
         self.sigma_data = sigma_data
         self.encoder_add_factor = encoder_add_factor
         self.decoder_add_factor = decoder_add_factor
-        self.decoder_cat_factor = decoder_cat_factor
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
 
