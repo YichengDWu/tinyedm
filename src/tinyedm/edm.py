@@ -158,7 +158,12 @@ class EDM(L.LightningModule):
 
     @classmethod
     def load_from_checkpoint(
-        cls, checkpoint_path, *, map_location=None, load_ema: bool = False, **kwargs: Any
+        cls,
+        checkpoint_path,
+        *,
+        map_location=None,
+        load_ema: bool = False,
+        **kwargs: Any,
     ) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, **kwargs)
         model = instantiate(checkpoint["hyper_parameters"])
@@ -196,7 +201,7 @@ class EDM(L.LightningModule):
             return ema_params
         except KeyError:
             raise ValueError("EMA weights not found in the checkpoint.")
-        
+
     def training_step(self, batch, batch_idx):
         clean_image, class_label = batch
         noisy_image, sigma = self.diffuser(clean_image)
