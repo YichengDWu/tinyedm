@@ -7,7 +7,7 @@ import argparse
 
 def generate(
     ckpt_path,
-    use_ema,
+    load_ema,
     output_dir,
     num_samples,
     image_size,
@@ -16,7 +16,7 @@ def generate(
     num_workers=16,
     num_steps=32,
 ) -> None:
-    model = EDM.load_from_checkpoint(ckpt_path, use_ema=use_ema)
+    model = EDM.load_from_checkpoint(ckpt_path, load_ema=load_ema)
     model.solver = DeterministicSolver(num_steps=num_steps)
 
     # noise datamodule
@@ -53,9 +53,9 @@ def main():
         "--ckpt_path", type=str, required=True, help="Path to the checkpoint file"
     )
     parser.add_argument(
-        "--use_ema",
+        "--load_ema",
         action="store_true",
-        help="Use the exponential moving average of the weights",
+        help="Load the exponential moving average of the weights",
     )
     parser.add_argument(
         "--output_dir", type=str, required=True, help="Directory for output"
@@ -79,7 +79,7 @@ def main():
     # Call generate with arguments from command line
     generate(
         args.ckpt_path,
-        args.use_ema,
+        args.load_ema,
         args.output_dir,
         args.num_samples,
         args.image_size,

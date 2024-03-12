@@ -158,15 +158,14 @@ class EDM(L.LightningModule):
 
     @classmethod
     def load_from_checkpoint(
-        cls, checkpoint_path, *, map_location=None, use_ema: bool = False, **kwargs: Any
+        cls, checkpoint_path, *, map_location=None, load_ema: bool = False, **kwargs: Any
     ) -> Self:
         checkpoint = torch.load(checkpoint_path, map_location=map_location, **kwargs)
         model = instantiate(checkpoint["hyper_parameters"])
-        model.use_ema = use_ema
         assert isinstance(model, L.LightningModule)
 
-        if use_ema:
-            ema_params = checkpoint["optimizer_states"][0]["ema"]
+        if load_ema:
+            ema_params = cls.find_ema_weights(checkpoint)
             for param, ema_param in zip(model.parameters(), ema_params):
                 swap_tensors(param.data, ema_param)
 
@@ -190,6 +189,14 @@ class EDM(L.LightningModule):
             model.to(device)
         return cast(Self, model)
 
+    @staticmethod
+    def find_ema_weights(checkpoint: dict):
+        try:
+            ema_params = checkpoint["optimizer_states"][0]["ema"]
+            return ema_params
+        except KeyError:
+            raise ValueError("EMA weights not found in the checkpoint.")
+        
     def training_step(self, batch, batch_idx):
         clean_image, class_label = batch
         noisy_image, sigma = self.diffuser(clean_image)
