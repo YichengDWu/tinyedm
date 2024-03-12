@@ -3,7 +3,7 @@ import torch
 from torch import Tensor, nn, optim
 from .metric import WeightedMeanSquaredError
 from .networks import UncertaintyNet
-from torch.optim.lr_scheduler import LambdaLR, LinearLR, ConstantLR, SequentialLR
+from torch.optim.lr_scheduler import LambdaLR
 from .ema import EMA, EMAOptimizer
 from .utils import deinstantiate, swap_tensors
 from hydra.utils import instantiate
@@ -185,7 +185,7 @@ class EDM(L.LightningModule):
                 rank_zero_warn(
                     f"The state dict in {checkpoint_path!r} contains no parameters."
                 )
-                return model
+                return cast(Self, model)
 
             device = next(
                 (t for t in state_dict.values() if isinstance(t, torch.Tensor)),
