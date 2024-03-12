@@ -77,6 +77,7 @@ def mp_add(a: Tensor, b: Tensor, t: float = 0.3) -> Tensor:
     scale = np.sqrt(t ** 2 + (1 - t) ** 2, dtype=np.float32)
     return ((1 - t) * a + t * b) / scale
 
+
 class UncertaintyNet(nn.Module):
     def __init__(self, in_features: int, hidden_features: int):
         super().__init__()
@@ -90,18 +91,22 @@ class UncertaintyNet(nn.Module):
         x = self.linear2(x)
         return x
 
+
 class Scalelong(nn.Module):
     def __init__(self, dim, r=16):
         super(Scalelong, self).__init__()
-        self.layer1 = Conv2d(dim, int(dim // r), 1)
+        self.layer1 = Conv2d(dim + 1, int(dim // r), 1)
         self.layer2 = Conv2d(int(dim // r), dim, 1)
 
     def forward(self, inp):
+        ones_tensor = torch.ones_like(inp[:, 0:1, :, :])
+        inp = torch.cat((inp, ones_tensor), dim=1)
         gain = F.sigmoid(
             self.layer2(mp_silu(self.layer1(torch.mean(inp, dim=[2, 3], keepdim=True))))
         )
         return gain
-    
+
+
 class ClassEmbedding(nn.Module):
     def __init__(self, num_embeddings, embedding_dim):
         super().__init__()
@@ -181,7 +186,7 @@ class CosineAttention(nn.Module):
         k = k.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
         v = v.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
         q, k, v = pixel_norm(q, dim=-1), pixel_norm(k, dim=-1), pixel_norm(v, dim=-1)
-        
+
         y = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
 
         y = y.transpose(2, 3).reshape(b, -1, h, w)

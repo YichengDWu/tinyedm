@@ -35,7 +35,7 @@ class RandomNoiseDataModule(AbstractDataModule):
     @property
     def num_classes(self) -> int:
         return self._num_classes
-    
+
     def prepare_data(self):
         pass
 
