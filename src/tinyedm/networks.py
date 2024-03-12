@@ -92,9 +92,9 @@ class UncertaintyNet(nn.Module):
         return x
 
 
-class Scalelong(nn.Module):
+class ScaleLong(nn.Module):
     def __init__(self, dim, r=16):
-        super(Scalelong, self).__init__()
+        super(ScaleLong, self).__init__()
         self.layer1 = Conv2d(dim + 1, int(dim // r), 1)
         self.layer2 = Conv2d(int(dim // r), dim, 1)
 
@@ -271,7 +271,7 @@ class DecoderBlock(nn.Module):
         super().__init__()
 
         self.add_factor = add_factor
-        self.cat_factor = Scalelong(skip_channels) if skip_channels > 0 else None
+        self.cat_factor = ScaleLong(skip_channels) if skip_channels > 0 else None
 
         self.resample = Upsample() if up else nn.Identity()
 
