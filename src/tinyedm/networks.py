@@ -292,7 +292,7 @@ class DecoderBlock(nn.Module):
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
     ) -> Tensor:
         if skip is not None:
-            input = torch.cat(input, skip * self.cat_factor(skip), dim=1)
+            input = torch.cat((input, skip * self.cat_factor(skip)), dim=1)
         x = self.resample(input)
         res = x
         x = self.conv_1x1(x)
