@@ -52,7 +52,7 @@ python src/tinyedm/datamodules/extract_latents.py --data-dir ./datasets/imagenet
 ```bash
 python src/tinyedm/generate.py \
     --ckpt_path /path/to/checkpoint.ckpt \
-    --use_ema \
+    --load_ema \
     --output_dir /path/to/output \
     --num_samples 50000 \
     --image_size 32 \
