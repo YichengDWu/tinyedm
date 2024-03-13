@@ -6,7 +6,7 @@ trainer:
     max_epochs: 1000
     accumulate_grad_batches: 1
     strategy: auto
-    precision: 16-mixed
+    precision: bf16-mixed
     check_val_every_n_epoch: 10
 
 datamodule:
@@ -43,7 +43,7 @@ model:
         skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
         dropout_rate: 0.0
 
-    use_uncertainty: True
+    use_uncertainty: False
     lr: 0.02
     steady_steps: 200
     rampup_steps: 200
