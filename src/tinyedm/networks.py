@@ -57,13 +57,19 @@ class Linear(nn.Module):
         return f"{self.in_features}, {self.out_features}"
 
 
-class Upsample(nn.Module):
+class UpSample(nn.Module):
     def __init__(self):
         super().__init__()
 
     def forward(self, x):
         return F.interpolate(x, scale_factor=2, mode="nearest-exact")
 
+class DownSample(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return F.avg_pool2d(x, kernel_size=2, stride=2)
 
 def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
     return x / (torch.sqrt(torch.mean(x ** 2, dim=dim, keepdim=True) + eps))
@@ -213,7 +219,7 @@ class EncoderBlock(nn.Module):
         self.dropout_rate = dropout_rate
         self.add_factor = add_factor
 
-        self.resample = nn.AvgPool2d(kernel_size=2, stride=2) if down else nn.Identity()
+        self.resample = DownSample() if down else nn.Identity()
 
         self.conv_1x1 = (
             Conv2d(in_channels, out_channels, 1)
@@ -273,7 +279,7 @@ class DecoderBlock(nn.Module):
         self.add_factor = add_factor
         self.cat_factor = ScaleLong(skip_channels) if skip_channels > 0 else None
 
-        self.resample = Upsample() if up else nn.Identity()
+        self.resample = UpSample() if up else nn.Identity()
 
         total_input_channels = in_channels + skip_channels
         self.conv_1x1 = (
