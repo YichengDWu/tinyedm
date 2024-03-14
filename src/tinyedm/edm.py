@@ -204,6 +204,7 @@ class EDM(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         clean_image, class_label = batch
+        class_label = class_label if self.conditional else None
         noisy_image, sigma = self.diffuser(clean_image)
         fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
@@ -236,10 +237,10 @@ class EDM(L.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         clean_image, class_label = batch
+        class_label = class_label if self.conditional else None
         noisy_image, sigma = self.diffuser(clean_image)
         fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
-
         weight = (sigma ** 2 + self.sigma_data ** 2) / (sigma * self.sigma_data) ** 2
         loss = self.val_mse(weight, denoised_image, clean_image)
 
@@ -279,6 +280,7 @@ class EDM(L.LightningModule):
     def forward(
         self, noisy_image: Tensor, sigma: Tensor, class_label: Tensor | None = None
     ) -> Tensor:
+        class_label = class_label if self.conditional else None
         fourier_embedding, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
         return denoised_image
@@ -294,6 +296,10 @@ class EDM(L.LightningModule):
     @property
     def num_classes(self) -> int | None:
         return self.embedding.num_classes
+
+    @property
+    def conditional(self) -> bool:
+        return self.num_classes is not None
 
     @staticmethod
     def get_lr_scheduler(optimizer, rampup_steps, steady_steps):
