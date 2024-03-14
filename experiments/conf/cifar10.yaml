@@ -36,12 +36,12 @@ model:
         out_channels: 3
         sigma_data: 0.5
         embedding_dim: ${model.embedding.embedding_dim}
-        encoder_block_types: ["Enc", "Enc", "Enc", "EncD", "EncA", "EncA", "EncA", "EncD", "EncA", "EncA", "EncA"]
-        decoder_block_types: ["DecA", "Dec", "DecA", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecA", "DecU", "Dec", "Dec", "Dec", "Dec"]
-        encoder_out_channels: [128, 128, 128, 128, 256, 256, 256, 256, 512, 512, 512]
-        decoder_out_channels: [512, 512, 512, 512, 512, 512, 512, 256, 256, 256, 256, 256, 128, 128, 128, 128]
-        skip_connections: [False, False, True, True, True, True, False, True, True, True, True, False, True, True, True, True]
-        dropout_rate: 0.0
+        encoder_block_types: ["Enc", "Enc", "EncD", "EncA", "EncA", "EncD", "EncA", "EncA"]
+        decoder_block_types: ["DecA", "Dec", "DecA", "DecA", "DecA", "DecU", "DecA", "DecA", "DecA", "DecU", "Dec", "Dec", "Dec"]
+        encoder_out_channels: [256, 256, 256, 256, 256, 256, 256, 256]
+        decoder_out_channels: [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+        skip_connections: [False, False, True, True, True, False, True, True, True, False, True, True, True]
+        dropout_rate: 0.13
 
     use_uncertainty: False
     lr: 0.02
@@ -50,7 +50,7 @@ model:
     scheduler_interval: epoch
 
     use_ema: True
-    ema_length: 0.04
+    ema_length: 0.13
     validate_original_weights: False
     cpu_offload: False
     every_n_steps: 1
