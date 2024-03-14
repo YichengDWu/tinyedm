@@ -36,7 +36,6 @@ class GenerateCallback(Callback):
             self.class_labels = torch.arange(
                 0, pl_module.num_classes, device=pl_module.device, dtype=torch.long
             )
-            self.class_labels = self.class_labels.repeat(self.num_samples)
         else:
             self.class_labels = None
 
