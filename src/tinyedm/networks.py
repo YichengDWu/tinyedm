@@ -64,12 +64,14 @@ class UpSample(nn.Module):
     def forward(self, x):
         return F.interpolate(x, scale_factor=2, mode="nearest-exact")
 
+
 class DownSample(nn.Module):
     def __init__(self):
         super().__init__()
 
     def forward(self, x):
         return F.avg_pool2d(x, kernel_size=2, stride=2)
+
 
 def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
     return x / (torch.sqrt(torch.mean(x ** 2, dim=dim, keepdim=True) + eps))

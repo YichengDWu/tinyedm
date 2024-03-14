@@ -28,7 +28,7 @@ model:
         _target_: tinyedm.Embedding
         fourier_dim: 64
         embedding_dim: 256
-        num_classes: 10
+        num_classes: null
 
     denoiser:
         _target_: tinyedm.Denoiser
@@ -68,7 +68,7 @@ callbacks:
 
     generate_callback:
         _target_: tinyedm.callbacks.GenerateCallback
-        num_samples: 8
+        num_samples: 80
         img_shape: [3, 32, 32]
         every_n_epochs: 5
         mean: [0.49139968, 0.48215841, 0.44653091]
