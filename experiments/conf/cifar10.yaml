@@ -3,7 +3,7 @@ seed: 42
 trainer:
     devices: -1
     accelerator: gpu
-    max_epochs: 1000
+    max_epochs: 2000
     accumulate_grad_batches: 1
     strategy: auto
     precision: bf16-mixed
