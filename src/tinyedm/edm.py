@@ -289,6 +289,7 @@ class EDM(L.LightningModule):
         self, batch: Any, batch_idx: int, dataloader_idx: int | None = None
     ):
         x0, class_label = batch
+        class_label = class_label if self.conditional else None
         xT = self.solver.solve(self, x0, class_label)
 
         return xT
