@@ -91,12 +91,13 @@ class UncertaintyNet(nn.Module):
         super().__init__()
         self.linear1 = Linear(in_features + 1, hidden_features)
         self.linear2 = Linear(hidden_features, 1)
+        self.gain = nn.Parameter(torch.zeros(1))
 
     def forward(self, x: Tensor):
         ones_tensor = torch.ones_like(x[:, 0:1])
         x = torch.cat((x, ones_tensor), dim=1)
         x = mp_silu(self.linear1(x))
-        x = self.linear2(x)
+        x = self.gain * self.linear2(x)
         return x
 
 
