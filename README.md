@@ -61,3 +61,11 @@ python src/tinyedm/generate.py \
     --num_workers 16 \
     --num_steps 32
 ```
+
+## Results
+
+
+|Dataset | Params       | type | epochs | FID
+|----|--------------|:-----:|-----------:|-----------:|
+|CIFAR-10| 35.6 M |  unconditional |  1700 | 4.0 |
+
