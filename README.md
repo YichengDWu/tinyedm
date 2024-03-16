@@ -72,6 +72,6 @@ python src/tinyedm/generate.py \
 
 1. Using FP16 mixed precision training on the CIFAR-10 dataset sometimes leads to overflow, so we have adopted bf16 mixed precision, which may result in a loss of accuracy for the model.
 2. For the scale factors of skip connections, this implementation uses a small network to learn them, inspired by [ScaleLong: Towards More Stable Training of Diffusion Model via Scaling Network Long Skip Connection
-](https://arxiv.org/abs/2310.13545).
-3. The use of multi-task learning in the paper did not observe any improvement, or it may be more effective in long-term training. However, I do not have the computational power to verify this.
+](https://arxiv.org/abs/2310.13545). The experiment shows that this improves the results.
+3. The use of multi-task learning in the paper did not observe any improvement, or it may be more effective in long-term training. However, I do not have the compute power to verify this.
 
