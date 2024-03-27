@@ -10,7 +10,7 @@ def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
     norm = torch.add(
         eps, norm, alpha=np.sqrt(norm.numel() / x.numel(), dtype=np.float32)
     )
-    return x / norm
+    return x / norm.to(x.dtype)
 
 
 def normalize(x, eps=1e-4):
@@ -135,9 +135,9 @@ class FourierEmbedding(nn.Module):
         self.register_buffer("phases", 2 * np.pi * torch.rand(embedding_dim))
 
     def forward(self, x):
-        y = torch.outer(x.flatten().to(torch.float32), self.freqs) + self.phases
-        y = x.cos() * np.sqrt(2)
-        return y.to(x.dtype)
+        y = torch.outer(x.flatten(), self.freqs) + self.phases
+        y = y.cos() * np.sqrt(2, dtype=np.float32)
+        return y
 
 
 class Embedding(nn.Module):
@@ -444,7 +444,7 @@ def get_skip_channels(
 
 def build_encoder_blocks(in_channel, block_types, out_channels, **kwargs):
     encoder_blocks = nn.ModuleList()
-    in_channel = in_channel + 1
+    in_channel = out_channels[0]
     for block_type, out_channel in zip(block_types, out_channels):
         down = block_type.endswith("D")
         attention = block_type.endswith("A")
@@ -531,11 +531,11 @@ class Denoiser(nn.Module):
         )
         self.skip_connections = skip_connections
 
+        self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
         self.gain_out = nn.Parameter(torch.zeros(1))
 
         self.encoder_blocks = build_encoder_blocks(
-            in_channels,
             encoder_block_types,
             encoder_out_channels,
             embedding_dim=embedding_dim,
@@ -582,6 +582,7 @@ class Denoiser(nn.Module):
         x = c_in * noisy_image
         ones_tensor = torch.ones_like(x[:, 0:1, :, :])
         x = torch.cat((x, ones_tensor), dim=1)
+        x = self.conv_in(x)
 
         skips = []
         skips.append(x)
