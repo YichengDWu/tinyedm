@@ -4,10 +4,14 @@ import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
 
+
 def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
     norm = torch.linalg.vector_norm(x, dim=dim, keepdim=True, dtype=torch.float32)
-    norm = torch.add(eps, norm, alpha=np.sqrt(norm.numel() / x.numel(), dtype=np.float32))
+    norm = torch.add(
+        eps, norm, alpha=np.sqrt(norm.numel() / x.numel(), dtype=np.float32)
+    )
     return x / norm
+
 
 def normalize(x, eps=1e-4):
     dim = list(range(1, x.ndim))
@@ -75,13 +79,12 @@ class DownSample(nn.Module):
         return F.avg_pool2d(x, kernel_size=2, stride=2)
 
 
-
 def mp_silu(x: Tensor) -> Tensor:
     return F.silu(x) / 0.596
 
 
 def mp_add(a: Tensor, b: Tensor, t: float = 0.5) -> Tensor:
-    return a.lerp(b, t) / np.sqrt((1 - t) ** 2 + t**2)
+    return a.lerp(b, t) / np.sqrt((1 - t) ** 2 + t ** 2)
 
 
 class UncertaintyNet(nn.Module):
@@ -196,7 +199,7 @@ class CosineAttention(nn.Module):
         v = v.transpose(2, 3)
         y = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
         y = y.transpose(2, 3).reshape(b, -1, h, w)
-        
+
         y = self.out_conv(y)
 
         out = mp_add(x, y)
@@ -500,14 +503,14 @@ class Denoiser(nn.Module):
         num_heads: int = 4,
     ):
         super().__init__()
-        assert (
-            len(encoder_block_types) == len(encoder_out_channels)
+        assert len(encoder_block_types) == len(
+            encoder_out_channels
         ), f"encoder_block_types and encoder_out_channels must have the same length, got {len(encoder_block_types)} and {len(encoder_out_channels)}"
-        assert (
-            len(decoder_block_types) == len(decoder_out_channels)
+        assert len(decoder_block_types) == len(
+            decoder_out_channels
         ), f"decoder_block_types and decoder_out_channels must have the same length, got {len(decoder_block_types)} and {len(decoder_out_channels)}"
-        assert (
-            len(skip_connections) == len(decoder_out_channels)
+        assert len(skip_connections) == len(
+            decoder_out_channels
         ), f"skip_connections must have the same length as decoder_out_channels, got {len(skip_connections)} and {len(decoder_out_channels)}"
 
         (
@@ -571,9 +574,9 @@ class Denoiser(nn.Module):
 
     def forward(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor):
         sigma = sigma.view(-1, 1, 1, 1)
-        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
-        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
-        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
+        c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
+        c_out = sigma * self.sigma_data / (sigma ** 2 + self.sigma_data ** 2).sqrt()
+        c_in = 1 / (self.sigma_data ** 2 + sigma ** 2).sqrt()
 
         # Input block
         x = c_in * noisy_image
@@ -630,9 +633,9 @@ class DenoiserWrapper(nn.Module):
         self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
     ) -> Tensor:
         sigma = sigma.view(-1, 1, 1, 1)
-        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
-        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
-        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
+        c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
+        c_out = sigma * self.sigma_data / (sigma ** 2 + self.sigma_data ** 2).sqrt()
+        c_in = 1 / (self.sigma_data ** 2 + sigma ** 2).sqrt()
         c_noise = sigma.log() / 4
 
         F = self.net(c_in * noisy_image, c_noise.flatten(), embedding)
