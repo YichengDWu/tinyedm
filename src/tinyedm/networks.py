@@ -4,12 +4,14 @@ import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
 
+def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
+    norm = torch.linalg.vector_norm(x, dim=dim, keepdim=True, dtype=torch.float32)
+    norm = torch.add(eps, norm, alpha=np.sqrt(norm.numel() / x.numel(), dtype=np.float32))
+    return x / norm
 
 def normalize(x, eps=1e-4):
     dim = list(range(1, x.ndim))
-    n = torch.linalg.vector_norm(x, dim=dim, keepdim=True)
-    alpha = np.sqrt(n.numel() / x.numel(), dtype=np.float32)
-    return x / torch.add(eps, n, alpha=alpha)
+    return pixel_norm(x, eps=eps, dim=dim)
 
 
 class Conv2d(nn.Module):
@@ -73,17 +75,13 @@ class DownSample(nn.Module):
         return F.avg_pool2d(x, kernel_size=2, stride=2)
 
 
-def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
-    return x / (torch.sqrt(torch.mean(x ** 2, dim=dim, keepdim=True) + eps))
-
 
 def mp_silu(x: Tensor) -> Tensor:
     return F.silu(x) / 0.596
 
 
-def mp_add(a: Tensor, b: Tensor, t: float = 0.3) -> Tensor:
-    scale = np.sqrt(t ** 2 + (1 - t) ** 2, dtype=np.float32)
-    return ((1 - t) * a + t * b) / scale
+def mp_add(a: Tensor, b: Tensor, t: float = 0.5) -> Tensor:
+    return a.lerp(b, t) / np.sqrt((1 - t) ** 2 + t**2)
 
 
 class UncertaintyNet(nn.Module):
@@ -130,13 +128,13 @@ class ClassEmbedding(nn.Module):
 class FourierEmbedding(nn.Module):
     def __init__(self, embedding_dim: int):
         super().__init__()
-        self.register_buffer("freqs", torch.randn(embedding_dim))
-        self.register_buffer("phases", torch.rand(embedding_dim))
+        self.register_buffer("freqs", 2 * np.pi * torch.randn(embedding_dim))
+        self.register_buffer("phases", 2 * np.pi * torch.rand(embedding_dim))
 
     def forward(self, x):
-        x = torch.outer(x.flatten(), self.freqs) + self.phases
-        x = torch.cos(2 * torch.pi * x) * np.sqrt(2, dtype=np.float32)
-        return x
+        y = torch.outer(x.flatten().to(torch.float32), self.freqs) + self.phases
+        y = x.cos() * np.sqrt(2)
+        return y.to(x.dtype)
 
 
 class Embedding(nn.Module):
@@ -160,7 +158,7 @@ class Embedding(nn.Module):
 
     def forward(self, sigmas, class_labels=None):
         with torch.cuda.amp.autocast(enabled=False):
-            c_noise = sigmas.log() / 4
+            c_noise = sigmas.log() / 4  # preconditioning
             fourier_embedding = self.fourier_embed(c_noise)
             embedding = self.sigma_embed(fourier_embedding)
 
@@ -189,16 +187,16 @@ class CosineAttention(nn.Module):
     def forward(self, x):
         b, c, h, w = x.shape
         qkv = self.qkv_conv(x)  # (b, c, h, w) -> (b, 3*c, h, w)
-        q, k, v = qkv.chunk(3, 1)  # (b, c, h*w)
+        qkv = qkv.view(b, self.num_heads, -1, 3, h * w)
+        qkv = pixel_norm(qkv, dim=2)
+        q, k, v = qkv.unbind(3)
 
-        q = q.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
-        k = k.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
-        v = v.view(b, self.num_heads, self.head_dim, -1).transpose(2, 3)
-        q, k, v = pixel_norm(q, dim=-1), pixel_norm(k, dim=-1), pixel_norm(v, dim=-1)
-
+        q = q.transpose(2, 3)
+        k = k.transpose(2, 3)
+        v = v.transpose(2, 3)
         y = F.scaled_dot_product_attention(q, k, v)  # (b, num_heads, h*w, head_dim)
-
         y = y.transpose(2, 3).reshape(b, -1, h, w)
+        
         y = self.out_conv(y)
 
         out = mp_add(x, y)
@@ -247,8 +245,7 @@ class EncoderBlock(nn.Module):
         x = pixel_norm(x)
 
         # Residual branch
-        res = x
-        res = mp_silu(res)
+        res = mp_silu(x)
         res = self.conv_3x3_1(res)
 
         with torch.cuda.amp.autocast(enabled=False):
@@ -442,9 +439,9 @@ def get_skip_channels(
     return tuple(skip_channels)
 
 
-def build_encoder_blocks(block_types, out_channels, **kwargs):
+def build_encoder_blocks(in_channel, block_types, out_channels, **kwargs):
     encoder_blocks = nn.ModuleList()
-    in_channel = out_channels[0]
+    in_channel = in_channel + 1
     for block_type, out_channel in zip(block_types, out_channels):
         down = block_type.endswith("D")
         attention = block_type.endswith("A")
@@ -503,14 +500,14 @@ class Denoiser(nn.Module):
         num_heads: int = 4,
     ):
         super().__init__()
-        assert len(encoder_block_types) == len(
-            encoder_out_channels
+        assert (
+            len(encoder_block_types) == len(encoder_out_channels)
         ), f"encoder_block_types and encoder_out_channels must have the same length, got {len(encoder_block_types)} and {len(encoder_out_channels)}"
-        assert len(decoder_block_types) == len(
-            decoder_out_channels
+        assert (
+            len(decoder_block_types) == len(decoder_out_channels)
         ), f"decoder_block_types and decoder_out_channels must have the same length, got {len(decoder_block_types)} and {len(decoder_out_channels)}"
-        assert len(skip_connections) == len(
-            decoder_out_channels
+        assert (
+            len(skip_connections) == len(decoder_out_channels)
         ), f"skip_connections must have the same length as decoder_out_channels, got {len(skip_connections)} and {len(decoder_out_channels)}"
 
         (
@@ -531,11 +528,11 @@ class Denoiser(nn.Module):
         )
         self.skip_connections = skip_connections
 
-        self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
         self.gain_out = nn.Parameter(torch.zeros(1))
 
         self.encoder_blocks = build_encoder_blocks(
+            in_channels,
             encoder_block_types,
             encoder_out_channels,
             embedding_dim=embedding_dim,
@@ -573,21 +570,15 @@ class Denoiser(nn.Module):
         self.num_heads = num_heads
 
     def forward(self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor):
-        if sigma.ndim == 0:
-            sigma = sigma * torch.ones(
-                noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
-            )
-
         sigma = sigma.view(-1, 1, 1, 1)
-        c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
-        c_out = sigma * self.sigma_data / (sigma ** 2 + self.sigma_data ** 2).sqrt()
-        c_in = 1 / (self.sigma_data ** 2 + sigma ** 2).sqrt()
+        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
+        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
+        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
 
         # Input block
         x = c_in * noisy_image
         ones_tensor = torch.ones_like(x[:, 0:1, :, :])
         x = torch.cat((x, ones_tensor), dim=1)
-        x = self.conv_in(x)
 
         skips = []
         skips.append(x)
@@ -638,14 +629,10 @@ class DenoiserWrapper(nn.Module):
     def forward(
         self, noisy_image: Tensor, sigma: Tensor, embedding: Tensor | None = None
     ) -> Tensor:
-        if sigma.ndim == 0:
-            sigma = sigma * torch.ones(
-                noisy_image.shape[0], dtype=noisy_image.dtype, device=noisy_image.device
-            )
         sigma = sigma.view(-1, 1, 1, 1)
-        c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
-        c_out = sigma * self.sigma_data / (sigma ** 2 + self.sigma_data ** 2).sqrt()
-        c_in = 1 / (self.sigma_data ** 2 + sigma ** 2).sqrt()
+        c_skip = self.sigma_data**2 / (sigma**2 + self.sigma_data**2)
+        c_out = sigma * self.sigma_data / (sigma**2 + self.sigma_data**2).sqrt()
+        c_in = 1 / (self.sigma_data**2 + sigma**2).sqrt()
         c_noise = sigma.log() / 4
 
         F = self.net(c_in * noisy_image, c_noise.flatten(), embedding)
