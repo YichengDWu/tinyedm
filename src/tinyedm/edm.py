@@ -239,7 +239,7 @@ class EDM(L.LightningModule):
         clean_image, class_label = batch
         class_label = class_label if self.conditional else None
         noisy_image, sigma = self.diffuser(clean_image)
-        fourier_embedding, embedding = self.embedding(sigma, class_label)
+        _, embedding = self.embedding(sigma, class_label)
         denoised_image = self.denoiser(noisy_image, sigma, embedding)
         weight = (sigma ** 2 + self.sigma_data ** 2) / (sigma * self.sigma_data) ** 2
         loss = self.val_mse(weight, denoised_image, clean_image)
