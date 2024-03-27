@@ -442,7 +442,7 @@ def get_skip_channels(
     return tuple(skip_channels)
 
 
-def build_encoder_blocks(in_channel, block_types, out_channels, **kwargs):
+def build_encoder_blocks(block_types, out_channels, **kwargs):
     encoder_blocks = nn.ModuleList()
     in_channel = out_channels[0]
     for block_type, out_channel in zip(block_types, out_channels):
