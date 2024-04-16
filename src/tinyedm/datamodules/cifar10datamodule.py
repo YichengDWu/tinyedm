@@ -15,8 +15,6 @@ class CIFAR10DataModule(AbstractDataModule):
         super().__init__(data_dir, batch_size, num_workers)
 
         self.img_size = image_size
-        self.mean = (0.49139968, 0.48215841, 0.44653091)
-        self.std = (0.24703223, 0.24348513, 0.26158784)
         self.transform = v2.Compose(
             [
                 v2.ToImage(),
@@ -25,11 +23,14 @@ class CIFAR10DataModule(AbstractDataModule):
                 v2.ToDtype(torch.float32, scale=True),
                 v2.RandomHorizontalFlip(),
                 v2.Normalize(
-                    self.mean, map(lambda x: 2 * x, self.std)
+                    (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)
                 ),  # normalize to have std of 0.5
             ]
         )
 
+    def denormalize(self, x):
+        return (x.to(torch.float32) * 127.5 + 128).clip(0, 255).to(torch.uint8)
+           
     def prepare_data(self):
         CIFAR10(self.data_dir, train=True, download=True, transform=self.transform)
         CIFAR10(self.data_dir, train=False, download=True, transform=self.transform)

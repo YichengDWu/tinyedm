@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 
 class AbstractDataModule(LightningDataModule):
-    def __init__(self, data_dir: str, batch_size: int, num_workers: int):
+    def __init__(self, data_dir: str | None, batch_size: int, num_workers: int):
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
@@ -16,6 +16,10 @@ class AbstractDataModule(LightningDataModule):
 
     @abstractmethod
     def setup(self, stage=None | str):
+        pass
+    
+    @abstractmethod
+    def denormalize(self, x):
         pass
 
     def train_dataloader(self):

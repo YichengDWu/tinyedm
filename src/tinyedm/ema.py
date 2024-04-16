@@ -15,15 +15,13 @@
 # Taken from https://github.com/amorehead/NeMo/blob/main/nemo/collections/common/callbacks/ema.py with minor modifications.
 import contextlib
 import copy
-import os
 import threading
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Iterable, Tuple
 
 import lightning as L
 import torch
 from lightning import Callback
-from lightning.pytorch.utilities import rank_zero_info
-from lightning.pytorch.utilities.exceptions import MisconfigurationException
+from lightning.fabric.utilities.exceptions import MisconfigurationException
 import numpy as np
 from .utils import swap_tensors
 

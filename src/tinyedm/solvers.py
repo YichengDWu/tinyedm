@@ -22,7 +22,8 @@ class DeterministicSolver:
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
         self.rho = rho
-
+        self.dtype: torch.dtype
+        
         if dtype is None or dtype == "float32":
             self.dtype = torch.float32
         elif dtype == "float16":
@@ -30,7 +31,7 @@ class DeterministicSolver:
         elif dtype == "float64":
             self.dtype = torch.float64
 
-        step_indices = torch.arange(num_steps, dtype=dtype)
+        step_indices = torch.arange(num_steps, dtype=self.dtype)
         t_steps = (
             sigma_max ** (1 / rho)
             + step_indices
