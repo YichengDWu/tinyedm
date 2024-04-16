@@ -93,7 +93,7 @@ class UncertaintyNet(nn.Module):
         super().__init__()
         self.linear1 = Linear(in_features + 1, hidden_features)
         self.linear2 = Linear(hidden_features, 1)
-        self.gain = nn.Parameter(torch.zeros(1))
+        self.gain = nn.Parameter(torch.zeros(()))
 
     def forward(self, x: Tensor):
         ones_tensor = torch.ones_like(x[:, 0:1])
@@ -241,7 +241,7 @@ class EncoderBlock(nn.Module):
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
-        self.gain = nn.Parameter(torch.ones(1))
+        self.gain = nn.Parameter(torch.ones(()))
 
     def forward(self, input: Tensor, embedding: Tensor) -> Tensor:
         x = self.resample(input)
@@ -301,7 +301,7 @@ class DecoderBlock(nn.Module):
 
         # embedding layer
         self.embed = Linear(embedding_dim, out_channels)
-        self.gain = nn.Parameter(torch.ones(1))
+        self.gain = nn.Parameter(torch.ones(()))
 
     def forward(
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
@@ -535,7 +535,7 @@ class Denoiser(nn.Module):
 
         self.conv_in = Conv2d(in_channels + 1, encoder_out_channels[0], 3)
         self.conv_out = Conv2d(decoder_out_channels[-1], out_channels, 1)
-        self.gain_out = nn.Parameter(torch.zeros(1))
+        self.gain_out = nn.Parameter(torch.zeros(()))
 
         self.encoder_blocks = build_encoder_blocks(
             encoder_block_types,
