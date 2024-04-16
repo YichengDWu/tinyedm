@@ -68,7 +68,7 @@ callbacks:
 
     generate_callback:
         _target_: tinyedm.callbacks.GenerateCallback
-        num_samples: 8
+        num_samples: 80
         img_shape: [1, 28, 28]
         every_n_epochs: 5
         solver:
