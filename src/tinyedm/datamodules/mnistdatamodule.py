@@ -15,8 +15,6 @@ class MNISTDataModule(AbstractDataModule):
     ):
         super().__init__(data_dir, batch_size, num_workers)
 
-        self.mean = (0.1307,)
-        self.std = (0.3081,)
         self.transform = v2.Compose(
             [
                 v2.ToImage(),
@@ -24,7 +22,7 @@ class MNISTDataModule(AbstractDataModule):
                 v2.Resize(image_size, antialias=True),
                 v2.ToDtype(torch.float32, scale=True),
                 v2.Normalize(
-                    self.mean, map(lambda x: 2 * x, self.std)
+                    (0.5,), (0.5,)
                 ),  # normalize to have std of 0.5
             ]
         )
@@ -45,3 +43,6 @@ class MNISTDataModule(AbstractDataModule):
             self.test_dataset = MNIST(
                 self.data_dir, train=False, download=False, transform=self.transform
             )
+
+    def denormalize(self, x):
+        return (x.to(torch.float32) * 127.5 + 128).clip(0, 255).to(torch.uint8)

@@ -1,5 +1,4 @@
-from typing import Dict, Sequence
-from lightning import LightningModule, Trainer
+from typing import Sequence, Literal
 from lightning.pytorch.callbacks import Callback, BasePredictionWriter
 from .edm import EDMSolver
 import torch
@@ -15,9 +14,6 @@ class GenerateCallback(Callback):
         self,
         solver: EDMSolver,
         img_shape: tuple[int, int, int],
-        mean: tuple,
-        std: tuple,
-        value_range: tuple[float, float] = (0, 1),
         num_samples: int = 8,
         every_n_epochs=5,
     ):
@@ -26,9 +22,7 @@ class GenerateCallback(Callback):
         self.num_samples = num_samples
         self.img_shape = img_shape
         self.every_n_epochs = every_n_epochs
-        self.value_range = value_range
-        self.mean = mean
-        self.std = std
+
 
     @rank_zero_only
     def on_train_start(self, trainer, pl_module):
@@ -43,9 +37,6 @@ class GenerateCallback(Callback):
             self.num_samples, *self.img_shape, device=pl_module.device,
         )
 
-        self.std = torch.tensor(self.std, device=pl_module.device).view(1, -1, 1, 1)
-        self.mean = torch.tensor(self.mean, device=pl_module.device).view(1, -1, 1, 1)
-
     @rank_zero_only
     def on_train_epoch_end(self, trainer, pl_module):
         if trainer.current_epoch % self.every_n_epochs == 0:
@@ -58,9 +49,8 @@ class GenerateCallback(Callback):
                     xT = self.solver.solve(pl_module, self.x0, self.class_labels)
                 # add to wandblogger
                 # unnormalize
-                images = xT * self.std * 2 + self.mean
-                images = torch.clamp(images, *self.value_range)
-                grid = make_grid(images, normalize=False)
+                images = trainer.datamodule.denormalize(xT)
+                grid = make_grid(images)
                 trainer.logger.log_image(
                     key="Generated", images=[grid], step=trainer.current_epoch
                 )
@@ -135,12 +125,12 @@ class LatentsGenerateCallback(Callback):
 
 class PreditionWriter(BasePredictionWriter):
     def __init__(
-        self, output_dir: str, write_interval: str, mean: Sequence, std: Sequence
+        self, output_dir: str, write_interval: Literal['batch', 'epoch', 'batch_and_epoch'], mean: Sequence, std: Sequence
     ):
         super().__init__(write_interval)
         self.output_dir = Path(output_dir)
-        self.mean = mean
-        self.std = std
+        self.mean = torch.Tensor(mean)
+        self.std = torch.tensor(std)
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

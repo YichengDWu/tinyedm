@@ -1,3 +1,4 @@
+from typing import Literal
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,7 +6,7 @@ from torch import Tensor
 import numpy as np
 
 
-def pixel_norm(x: Tensor, eps: float = 1e-4, dim=1) -> Tensor:
+def pixel_norm(x: Tensor, eps: float = 1e-4, dim: int | list[int]=1) -> Tensor:
     norm = torch.linalg.vector_norm(x, dim=dim, keepdim=True, dtype=torch.float32)
     norm = torch.add(
         eps, norm, alpha=np.sqrt(norm.numel() / x.numel(), dtype=np.float32)
@@ -306,6 +307,7 @@ class DecoderBlock(nn.Module):
         self, input: Tensor, embedding: Tensor, skip: Tensor | None = None
     ) -> Tensor:
         if skip is not None:
+            assert self.cat_factor is not None
             input = torch.cat((input, skip * self.cat_factor(skip)), dim=1)
         x = self.resample(input)
         res = x
@@ -327,7 +329,7 @@ class DecoderBlock(nn.Module):
         return out
 
 
-def get_encoder_blocks_types() -> tuple[str]:
+def get_encoder_blocks_types() -> tuple[str, ...]:
     return (
         "Enc",
         "Enc",
@@ -347,7 +349,7 @@ def get_encoder_blocks_types() -> tuple[str]:
     )
 
 
-def get_decoder_blocks_types() -> tuple[str]:
+def get_decoder_blocks_types() -> tuple[str, ...]:
     return (
         "DecA",
         "Dec",
@@ -373,11 +375,11 @@ def get_decoder_blocks_types() -> tuple[str]:
     )
 
 
-def get_encoder_out_channels() -> tuple[int]:
+def get_encoder_out_channels() -> tuple[int, ...]:
     return (192, 192, 192, 192, 384, 384, 384, 384, 576, 576, 576, 576, 768, 768, 768)
 
 
-def get_decoder_out_channels() -> tuple[int]:
+def get_decoder_out_channels() -> tuple[int, ...]:
     return (
         768,
         768,
@@ -403,7 +405,7 @@ def get_decoder_out_channels() -> tuple[int]:
     )
 
 
-def get_skip_connections() -> tuple[int]:
+def get_skip_connections() -> tuple[bool, ...]:
     """The indices of decoder blocks that have skip connections."""
     return (
         False,
@@ -431,10 +433,10 @@ def get_skip_connections() -> tuple[int]:
 
 
 def get_skip_channels(
-    encoder_out_channels: tuple[int],
-    decoder_out_channels: tuple[int],
-    skip_connections: tuple[bool],
-) -> tuple[int]:
+    encoder_out_channels: tuple[int, ...],
+    decoder_out_channels: tuple[int, ...],
+    skip_connections: tuple[bool, ...],
+) -> tuple[int, ...]:
     skip_channels = np.zeros(len(decoder_out_channels), dtype=int)
     skip_channels[list(skip_connections)] = list(encoder_out_channels[::-1]) + [
         encoder_out_channels[0]
@@ -490,11 +492,11 @@ class Denoiser(nn.Module):
         self,
         in_channels: int = 3,
         out_channels: int = 3,
-        encoder_block_types: tuple[str] = get_encoder_blocks_types(),
-        decoder_block_types: tuple[str] = get_decoder_blocks_types(),
-        encoder_out_channels: tuple[int] = get_encoder_out_channels(),
-        decoder_out_channels: tuple[int] = get_decoder_out_channels(),
-        skip_connections: tuple[bool] = get_skip_connections(),
+        encoder_block_types: tuple[str, ...] = get_encoder_blocks_types(),
+        decoder_block_types: tuple[str, ...] = get_decoder_blocks_types(),
+        encoder_out_channels: tuple[int, ...] = get_encoder_out_channels(),
+        decoder_out_channels: tuple[int, ...] = get_decoder_out_channels(),
+        skip_connections: tuple[bool, ...] = get_skip_connections(),
         dropout_rate: float = 0.0,
         sigma_data: float = 0.5,
         encoder_add_factor: float = 0.3,
