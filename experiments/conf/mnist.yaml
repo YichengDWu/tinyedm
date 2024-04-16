@@ -85,5 +85,5 @@ wandb_watch:
 wandb_logger:
     log_model: True
     project: MNIST
-    resume: True
-    reinit: False
+    resume: False
+    reinit: True
