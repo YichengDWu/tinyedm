@@ -83,5 +83,5 @@ wandb_watch:
 wandb_logger:
     log_model: True
     project: ImageNet
-    resume: False
-    reinit: True
+    resume: True
+    reinit: False
