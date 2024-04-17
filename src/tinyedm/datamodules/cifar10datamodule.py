@@ -11,8 +11,9 @@ class CIFAR10DataModule(AbstractDataModule):
         image_size: int = 32,
         batch_size: int = 16,
         num_workers: int = 16,
+        warmup_batch_size: int = 32,
     ):
-        super().__init__(data_dir, batch_size, num_workers)
+        super().__init__(data_dir, batch_size, num_workers, warmup_batch_size=warmup_batch_size)
 
         self.img_size = image_size
         self.transform = v2.Compose(

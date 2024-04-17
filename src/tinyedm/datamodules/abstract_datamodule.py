@@ -4,12 +4,13 @@ from abc import abstractmethod
 
 
 class AbstractDataModule(LightningDataModule):
-    def __init__(self, data_dir: str | None, batch_size: int, num_workers: int):
+    def __init__(self, data_dir: str | None, batch_size: int, num_workers: int, warmup_batch_size: int = 32):
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
-
+        self.warmup_batch_size = warmup_batch_size
+        
     @abstractmethod
     def prepare_data(self):
         pass
@@ -23,9 +24,13 @@ class AbstractDataModule(LightningDataModule):
         pass
 
     def train_dataloader(self):
+        if self.trainer.current_epoch < self.trainer.model.rampup_steps:
+            batch_size = self.warmup_batch_size
+        else:
+            batch_size = self.batch_size
         return DataLoader(
             self.train_dataset,
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
             shuffle=True,
